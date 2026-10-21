@@ -1,0 +1,20 @@
+# Logs (may contain Bluetooth device addresses)
+logs/
+*.log
+
+# Files the installer downloads; never commit Zwift's installer or Proton builds
+ZwiftSetup.exe
+*.tar.gz
+*.tar.xz
+*.tar
+GE-Proton*/
+
+# Release tarballs built from this repo
+zwift-linux-*.tar.gz
+
+# Editor and OS clutter
+*.swp
+*~
+.DS_Store
+.vscode/
+.idea/
