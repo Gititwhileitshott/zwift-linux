@@ -4,6 +4,13 @@ Run the official **Zwift for Windows** app on Linux, with your **Bluetooth and A
 
 > Unofficial community project. Not made, supported or endorsed by Zwift, Inc. You need your own Zwift account. Zwift itself is downloaded from Zwift's own servers and is not modified.
 
+> [!WARNING]
+> **Not working at the moment (October 2026).** Zwift's launcher update 1.2.0 (built October 15, 2026) broke this project. Zwift requires the launcher to log in, and the new launcher closes about 3 seconds after it opens under Wine/Proton. The installer still finishes and prints "Zwift is ready.", but the game never downloads and you can't log in.
+>
+> **Why:** the new launcher draws its login screen with a newer type of embedded web view (WebView2's composition control). That control depends on a Windows graphics API (Windows.Graphics) that Wine doesn't implement yet, so the launcher fails during startup and exits. Earlier launcher versions used the standard WebView2 control, which works under Wine.
+>
+> **What's next:** we plan to add the missing Windows graphics API to Wine. The other route is a fallback in Zwift's launcher to the standard WebView2 control when the composition control can't start. Until one of those lands, please don't rely on this installer. Existing installs that still have an older launcher may keep working until the launcher updates itself.
+
 ## Project overview
 
 Zwift has no Linux version. The Windows version can run through **Wine** (the Windows compatibility layer behind Steam's Proton), but out of the box Bluetooth trainers, ANT+ USB sticks and Zwift's launcher all fail. This project puts the fixes together into one installer:
