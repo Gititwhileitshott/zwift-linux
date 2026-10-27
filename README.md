@@ -9,7 +9,7 @@ Run the official **Zwift for Windows** app on Linux, with your **Bluetooth and A
 >
 > **Why:** the new launcher draws its login screen with a newer type of embedded web view (WebView2's composition control). That control depends on a Windows graphics API (Windows.Graphics) that Wine doesn't implement yet, so the launcher fails during startup and exits. Earlier launcher versions used the standard WebView2 control, which works under Wine.
 >
-> **What's next:** we plan to add the missing Windows graphics API to Wine. The other route is a fallback in Zwift's launcher to the standard WebView2 control when the composition control can't start. Until one of those lands, please don't rely on this installer. Existing installs that still have an older launcher may keep working until the launcher updates itself.
+> **What's next:** we plan to add the missing Windows graphics API to Wine. Until that lands, please don't rely on this installer. Existing installs that still have an older launcher may keep working until the launcher updates itself.
 
 ## Project overview
 
