@@ -2,6 +2,7 @@
 # zwift - start Zwift (Windows version) through GE-Proton. Installed by zwift-linux.
 #   zwift            start Zwift (Linux sign-in, no Windows launcher; first start opens Zwift's sign-in page)
 #   zwift --launcher start Zwift through the Windows launcher instead
+#   zwift --display x11|wayland   force Wine's X11 (XWayland) or Wayland driver (default: chosen per GPU, see zwift-display.sh)
 #   zwift login      sign in to Zwift again (e.g. to switch accounts)
 #   zwift logout     sign out and forget the stored sign-in
 #   zwift doctor     check Bluetooth / ANT+ / install health
@@ -85,6 +86,14 @@ esac
 # ZwiftLauncher.exe would. --launcher (or NATIVE_LOGIN=0 in zwift.conf) uses the Windows launcher.
 NATIVE="${NATIVE_LOGIN:-1}"
 [ "${1:-}" = --launcher ] && { NATIVE=0; shift; }
+DISPLAY_ARG=""
+case "${1:-}" in
+  --display) DISPLAY_ARG="${2:-}"; shift 2 ;;
+  --display=*) DISPLAY_ARG="${1#--display=}"; shift ;;
+esac
+case "$DISPLAY_ARG" in ""|x11|wayland) ;; *) echo "zwift: --display takes x11 or wayland" >&2; exit 1 ;; esac
+# shellcheck source=/dev/null
+. "$DATA/zwift-display.sh"
 
 if pgrep -f 'ZwiftApp\.exe' >/dev/null; then echo "Zwift is already running."; exit 0; fi
 if [ "$NATIVE" = 1 ] && [ -f "$ZDIR/ZwiftApp.exe" ] && [ -f "$DATA/LinuxZwiftLauncher.exe" ]; then :
@@ -93,6 +102,13 @@ else echo "Zwift is not installed in $PFX - run install.sh" >&2; exit 1; fi
 # Zwift's updater can put the Windows libusb0.dll back; keep the ANT+ bridge placeholder in place.
 [ "$DO_ANT" = 1 ] && [ -f "$DATA/libusb0-placeholder.dll" ] && \
   cp -f "$DATA/libusb0-placeholder.dll" "$PFX/drive_c/windows/system32/libusb0.dll"
+
+# Ride-highlight recording can't save clips under Proton (its FFmpeg has no MP4 muxer) and retries the
+# encoder several times a second, so switch it off unless the user asks for it (ZWIFT_VIDEO_CAPTURE=1).
+PREFS="$PFX/drive_c/users/steamuser/Documents/Zwift/prefs.xml"
+if [ "${ZWIFT_VIDEO_CAPTURE:-0}" != 1 ] && [ -f "$PREFS" ] && ! grep -q '<VIDEO_CAPTURE_ENABLED>' "$PREFS"; then
+  sed -i 's#</CONFIG>#    <VIDEO_CAPTURE_ENABLED>0</VIDEO_CAPTURE_ENABLED>\n    </CONFIG>#' "$PREFS"
+fi
 
 ble_release   # in case a previous session crashed or was killed
 ble_preflight
@@ -103,11 +119,8 @@ if [ "$NATIVE" = 1 ]; then
   # The game records which launcher started it; use the installed launcher's version when known.
   LV="$(grep -o 'version="[0-9.]*"' "$ZDIR/Launcher_ver_cur.xml" 2>/dev/null | grep -o '[0-9.]*' | head -1)"
   [ -z "$LV" ] || [ "$LV" = 0.0.0 ] && LV="${LAUNCHER_VERSION:-1.2.0}"
-  # On a Wayland desktop, use Wine's Wayland driver. Through XWayland (GNOME, NVIDIA) the game renders
-  # but the window never updates, so it looks frozen and GNOME reports "steam_app_0 is not responding".
-  # ZWIFT_X11=1 forces XWayland.
-  [ -n "${WAYLAND_DISPLAY:-}" ] && [ "${ZWIFT_X11:-0}" != 1 ] && export PROTON_ENABLE_WAYLAND=1
-  echo "Starting Zwift without the Windows launcher (log: $LOG)"
+  zl_pick_display "$DISPLAY_ARG"; zl_apply_display   # X11 or Wayland, see zwift-display.sh
+  echo "Starting Zwift without the Windows launcher, display: $ZL_DISPLAY ($ZL_DISPLAY_WHY) (log: $LOG)"
   "$UMU" "$DATA/LinuxZwiftLauncher.exe" "Z:$TOKEN" "$LV" >"$LOG" 2>&1 &
   UMU_PID=$!
   ( sleep 120; rm -f "$TOKEN" ) &   # in case the game never started
@@ -130,6 +143,7 @@ while kill -0 "$UMU_PID" 2>/dev/null; do
   sleep 2
 done
 wait "$UMU_PID" 2>/dev/null
+[ "$NATIVE" = 1 ] && zl_check_display "$PFX/drive_c/users/steamuser/Documents/Zwift/Logs/Log.txt"
 ble_release
 echo "Zwift closed."
 exit 0

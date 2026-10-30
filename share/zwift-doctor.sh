@@ -42,6 +42,16 @@ else
 fi
 [ -f "$DATA/zwift-auth.py" ] && python3 "$DATA/zwift-auth.py" status 2>&1 | sed 's/^/          /'
 
+echo "Display"
+# shellcheck source=/dev/null
+. "$DATA/zwift-display.sh"
+zl_pick_display
+gl="$(command -v glxinfo >/dev/null && glxinfo -B 2>/dev/null | sed -n 's/^OpenGL renderer string: //p')"
+pass "$(zl_session) session, GPU driver $(zl_gpu_driver)${gl:+ ($gl)}$( [ -n "$(zl_nvidia_major)" ] && echo ", NVIDIA $(cat /sys/module/nvidia/version)")"
+pass "Zwift will use Wine's $ZL_DISPLAY driver: $ZL_DISPLAY_WHY"
+[ -s "$DATA/display.auto" ] && note "automatic fallback active ($DATA/display.auto); delete it to retry the default"
+note "if the Zwift window freezes or stays black, try: zwift --display $( [ "$ZL_DISPLAY" = wayland ] && echo x11 || echo wayland)"
+
 echo "Bluetooth LE"
 if [ "$DO_BLE" != 1 ]; then note "disabled at install (--no-ble)"
 else

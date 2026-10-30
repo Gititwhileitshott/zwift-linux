@@ -34,6 +34,10 @@ for f in /etc/udev/rules.d/51-zwift-ant-usb.rules /etc/udev/rules.d/51-ant-usb.r
     sudo rm -f "$f" && sudo udevadm control --reload-rules
   fi
 done
+if [ -f /etc/apparmor.d/zwift-linux-umu ]; then
+  echo "removing /etc/apparmor.d/zwift-linux-umu (sudo)"
+  sudo apparmor_parser -R /etc/apparmor.d/zwift-linux-umu 2>/dev/null; sudo rm -f /etc/apparmor.d/zwift-linux-umu
+fi
 
 if [ "$PURGE" = 1 ]; then
   if [ -d "$PFX" ]; then

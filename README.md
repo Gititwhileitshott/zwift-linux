@@ -5,7 +5,7 @@ Run the official **Zwift for Windows** app on Linux, with your **Bluetooth and A
 > Unofficial community project. Not made, supported or endorsed by Zwift, Inc. You need your own Zwift account. Zwift itself is downloaded from Zwift's own servers and is not modified.
 
 > [!NOTE]
-> **October 2026: works again, without Zwift's Windows launcher.** Zwift's launcher 1.2.0 (built October 15, 2026) closes about 3 seconds after it opens under Wine/Proton, because its login screen uses a WebView2 control that needs Windows graphics APIs Wine doesn't have. zwift-linux 1.1.0 no longer needs the launcher: `zwift` signs you in on Zwift's own sign-in page and starts the game directly, and the installer downloads the game straight from Zwift's servers. Verified on an NVIDIA RTX 4090 (GNOME, Wayland) with a ride in Watopia at a steady 58 FPS. The installer's direct game download is new and hasn't been tested on a fresh install yet. See [Signing in without the launcher](#signing-in-without-the-launcher).
+> **October 2026: works again, without Zwift's Windows launcher.** Zwift's launcher 1.2.0 (built October 15, 2026) closes about 3 seconds after it opens under Wine/Proton, because its login screen uses a WebView2 control that needs Windows graphics APIs Wine doesn't have. zwift-linux 1.1.0 no longer needs the launcher: `zwift` signs you in on Zwift's own sign-in page and starts the game directly, and the installer downloads the game straight from Zwift's servers. Verified on an NVIDIA RTX 4090 (GNOME, Wayland) with a ride in Watopia at a steady 58 FPS. The display settings are chosen per desktop session and GPU; see [COMPATIBILITY.md](COMPATIBILITY.md) for what has and hasn't been tested. The installer's direct game download is new and hasn't been tested on a fresh install yet. See [Signing in without the launcher](#signing-in-without-the-launcher).
 
 ## Project overview
 
@@ -75,7 +75,9 @@ The installer:
 
 Re-running `./install.sh` updates an existing install and skips finished steps.
 
-Options: `--dpi N` (96 = 100%, 144 = 150%, 192 = 200%), `--prefix DIR`, `--setup ZwiftSetup.exe`, `--no-sudo`, `--no-ble`, `--no-ant`, `--yes`. Run `./install.sh --help`.
+`./install.sh --check` only checks your PC (distro, Python, sign-in window, Bluetooth, sandbox, display/GPU) and exits. Which desktops, GPUs and distros have been tested is in [COMPATIBILITY.md](COMPATIBILITY.md).
+
+Options: `--check`, `--dpi N` (96 = 100%, 144 = 150%, 192 = 200%), `--prefix DIR`, `--setup ZwiftSetup.exe`, `--no-sudo`, `--no-ble`, `--no-ant`, `--yes`. Run `./install.sh --help`.
 
 ## Requirements
 
@@ -94,6 +96,7 @@ Options: `--dpi N` (96 = 100%, 144 = 150%, 192 = 200%), `--prefix DIR`, `--setup
 | `zwift` | Start Zwift without the Windows launcher: signs in with Zwift's own sign-in page (first start, or when the sign-in expires) and starts the game directly. Before starting it checks that Bluetooth scanning works (resetting a stuck adapter); when the game exits, the tray launcher is shut down too. |
 | `zwift --launcher` | Start Zwift through the Windows launcher instead (also used when the game files aren't installed yet) |
 | `zwift login` / `zwift logout` / `zwift status` | Sign in again (e.g. switch account), sign out, or show whether you are signed in |
+| `zwift --display x11` / `--display wayland` | Force Wine's X11 (XWayland) or Wayland driver; by default it's chosen from your session and GPU ([COMPATIBILITY.md](COMPATIBILITY.md)) |
 | `zwift doctor` | Check the install, Bluetooth adapter, ANT+ stick (live test through Wine) and what the last Zwift session paired |
 | `zwift kill` | Force-stop everything in the Zwift prefix |
 | `zwift log` | Path of the last run's log |
@@ -111,10 +114,13 @@ Verified on CachyOS (kernel 7.2.9, AMD Radeon 890M), Zwift 1.123.0, 13 Oct 2026:
 | ANT+ USB stick (Dynastream ANTUSB-m) | Zwift lists ANT+ FE-C and power devices with live power |
 | Frame rate | 55-93 FPS |
 
-Other distros use the same GE-Proton build and runtime container, so they're expected to behave the same, but haven't been tested yet. Reports welcome: include `zwift doctor` output.
+Verified on CachyOS (GNOME 51 Wayland, NVIDIA RTX 4090, driver 615.78), Zwift 1.124.0, 30 Oct 2026, with zwift-linux 1.1.0 (no Windows launcher, Wine's Wayland driver): sign-in, menus, a 10-minute ride and spectating at 58-60 FPS (vsync), clean exit. Bluetooth and ANT+ haven't been re-checked on this build yet.
+
+The full desktop × GPU × distro matrix, with tested and untested setups kept apart, is in [COMPATIBILITY.md](COMPATIBILITY.md). Reports welcome: include `zwift doctor` output.
 
 ## Troubleshooting
 
+- **Zwift window frozen, black, or "not responding":** try the other display driver: `zwift --display x11` or `zwift --display wayland`. `zwift doctor` shows which one is in use and why.
 - **Launcher is tiny:** run `./install.sh --dpi 144` (150%) or `--dpi 192` (200%).
 - **Bluetooth devices don't show up:** check `zwift doctor`. The adapter must be powered on (`bluetoothctl power on`) and the trainer must not be connected to another app or phone. Pairing can take 15-30 s under Wine.
 - **No Bluetooth devices at all on the pairing screen:** Linux's Bluetooth service refuses to scan (`org.bluez.Error.InProgress`), typically after a session that stopped mid-connection. Zwift doesn't retry, so nothing appears. `zwift` now test-scans before each start and power-cycles the adapter if it's stuck; by hand: `bluetoothctl power off; bluetoothctl power on`. `zwift doctor` checks this too.

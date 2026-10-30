@@ -27,7 +27,7 @@ APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 PFX="${ZWIFT_PREFIX:-$HOME/Games/zwift}"
 SETUP_EXE=""
 DPI="${ZWIFT_DPI:-}"
-USE_SUDO=1 DO_BLE=1 DO_ANT=1 ASSUME_YES=0
+USE_SUDO=1 DO_BLE=1 DO_ANT=1 ASSUME_YES=0 CHECK_ONLY=0
 
 usage() {
   cat <<EOF
@@ -44,6 +44,7 @@ Options:
   --no-ble         Don't enable Bluetooth LE (use Zwift Companion instead)
   --no-ant         Don't install the ANT+ USB bridge
   -y, --yes        Don't ask questions (the game download is waited for automatically)
+  --check          Only check this PC (distro, Python, sign-in window, Bluetooth, sandbox, display/GPU) and exit
   -h, --help       This help
 
 Re-running the installer updates an existing install and skips finished steps.
@@ -59,6 +60,7 @@ while [ $# -gt 0 ]; do
     --no-ble) DO_BLE=0; shift ;;
     --no-ant) DO_ANT=0; shift ;;
     -y|--yes) ASSUME_YES=1; shift ;;
+    --check) CHECK_ONLY=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; usage; exit 1 ;;
   esac
@@ -78,7 +80,7 @@ step "Checking your system"
 for t in curl tar sha256sum sha512sum awk sed grep python3; do
   command -v "$t" >/dev/null || die "Missing required tool: $t"
 done
-if pgrep -f 'Zwift(App|Launcher)\.exe' >/dev/null 2>&1; then
+if [ "$CHECK_ONLY" = 0 ] && pgrep -f 'Zwift(App|Launcher)\.exe' >/dev/null 2>&1; then
   die "Zwift is running. Quit it (and its tray icon), then run the installer again."
 fi
 DISTRO_ID="unknown" DISTRO_LIKE="" DISTRO_NAME="Linux"
@@ -99,6 +101,49 @@ pkg_hint() { # pkg_hint <generic package name> -> install command for this distr
     *) echo "install the '$1' package with your package manager" ;;
   esac
 }
+
+# Ubuntu 23.10+ (AppArmor) lets unprivileged programs create user namespaces only with a profile that
+# allows it. umu's Steam Linux Runtime container (pressure-vessel / bwrap) needs one, like Steam's own.
+APPARMOR_FILE=/etc/apparmor.d/zwift-linux-umu
+APPARMOR_PROFILE='abi <abi/4.0>,
+include <tunables/global>
+profile zwift-linux-umu @{HOME}/.local/share/umu/**/srt-bwrap flags=(unconfined) {
+  userns,
+  include if exists <local/zwift-linux-umu>
+}'
+userns_restricted() { [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ]; }
+
+if [ "$CHECK_ONLY" = 1 ]; then
+  step "Prerequisites"
+  if command -v umu-run >/dev/null; then ok "umu-launcher from your distro: $(command -v umu-run)"
+  elif python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null; then ok "$(python3 -V) (umu-launcher zipapp will be downloaded)"
+  else warn "no umu-launcher and no Python 3.10+: $(pkg_hint python3)"; fi
+  if python3 -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("WebKit", "6.0"); from gi.repository import Gtk, WebKit' 2>/dev/null; then
+    ok "WebKitGTK 6: Zwift sign-in opens in its own window"
+  else
+    note_pkg="python3-gobject + webkitgtk-6.0"
+    case " $DISTRO_ID $DISTRO_LIKE " in
+      *" debian "*|*" ubuntu "*) note_pkg="python3-gi gir1.2-webkit-6.0" ;;
+      *" fedora "*|*" rhel "*) note_pkg="python3-gobject webkitgtk6.0" ;;
+      *" arch "*|*" cachyos "*|*" manjaro "*|*" endeavouros "*) note_pkg="python-gobject webkitgtk-6.0" ;;
+      *" opensuse"*|*" suse "*) note_pkg="python3-gobject typelib-1_0-WebKit-6_0" ;;
+    esac
+    warn "no WebKitGTK 6 for Python: sign-in will use your web browser instead (optional: $(pkg_hint "$note_pkg"))"
+  fi
+  if command -v bluetoothctl >/dev/null; then ok "BlueZ $(bluetoothctl --version 2>/dev/null | awk '{print $2}')"
+  else warn "BlueZ not found, needed for Bluetooth sensors: $(pkg_hint bluez)"; fi
+  if userns_restricted; then
+    if [ -f "$APPARMOR_FILE" ]; then ok "AppArmor user-namespace profile for umu present"
+    else warn "AppArmor restricts user namespaces; install.sh will add $APPARMOR_FILE (sudo) so umu's container can start"; fi
+  elif command -v unshare >/dev/null && ! unshare -Ur true 2>/dev/null; then
+    warn "unprivileged user namespaces are disabled; umu's container (and Steam's) can't start"
+  else ok "user namespaces available (umu container)"; fi
+  # shellcheck source=/dev/null
+  DATA="$DATA" . "$HERE/share/zwift-display.sh"
+  zl_pick_display
+  ok "$(zl_session) session, GPU driver $(zl_gpu_driver)$( [ -n "$(zl_nvidia_major)" ] && echo " $(cat /sys/module/nvidia/version)"): Wine $ZL_DISPLAY driver ($ZL_DISPLAY_WHY)"
+  exit 0
+fi
 
 # ---------------------------------------------------------------------------------------------
 step "1/7 umu-launcher (runs Proton outside Steam)"
@@ -171,6 +216,17 @@ if [ "$DO_ANT" = 1 ] && [ "$(cat "$UDEV_FILE" 2>/dev/null)" != "$UDEV_RULE" ]; t
     manual+=("echo '$UDEV_RULE' | sudo tee $UDEV_FILE && sudo udevadm control --reload-rules && sudo udevadm trigger")
   fi
 elif [ "$DO_ANT" = 1 ]; then ok "udev rule already present"; fi
+
+if userns_restricted && [ "$(cat "$APPARMOR_FILE" 2>/dev/null)" != "$APPARMOR_PROFILE" ]; then
+  if [ "$USE_SUDO" = 1 ] && command -v sudo >/dev/null; then
+    echo "  Adding $APPARMOR_FILE so umu's container may use user namespaces (sudo):"
+    if printf '%s\n' "$APPARMOR_PROFILE" | sudo tee "$APPARMOR_FILE" >/dev/null && sudo apparmor_parser -r "$APPARMOR_FILE"; then
+      ok "AppArmor profile installed"
+    else warn "could not load $APPARMOR_FILE; umu may fail with 'bwrap: setting up uid map: Permission denied'"; fi
+  else
+    manual+=("printf '%s\\n' '$APPARMOR_PROFILE' | sudo tee $APPARMOR_FILE && sudo apparmor_parser -r $APPARMOR_FILE")
+  fi
+fi
 
 if [ "$DO_BLE" = 1 ]; then
   if ! command -v bluetoothctl >/dev/null && ! systemctl list-unit-files bluetooth.service >/dev/null 2>&1; then
@@ -296,6 +352,7 @@ rm -rf "$DATA/ble-patch"
 [ -f "$BIN/zwift" ] && [ ! -L "$BIN/zwift" ] && grep -qs 'generated by zwift-setup.sh' "$BIN/zwift" && rm -f "$BIN/zwift"
 install -m 755 "$HERE/share/zwift-launcher.sh" "$DATA/zwift-launcher.sh"
 install -m 755 "$HERE/share/zwift-doctor.sh" "$DATA/zwift-doctor.sh"
+install -m 644 "$HERE/share/zwift-display.sh" "$DATA/zwift-display.sh"
 install -m 755 "$HERE/share/zwift-auth.py" "$DATA/zwift-auth.py"
 install -m 755 "$HERE/share/zwift-fetch-game.py" "$DATA/zwift-fetch-game.py"
 install -m 644 "$HERE/zwift-start/LinuxZwiftLauncher.exe" "$DATA/LinuxZwiftLauncher.exe"
