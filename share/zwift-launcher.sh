@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # zwift - start Zwift (Windows version) through GE-Proton. Installed by zwift-linux.
-#   zwift            start Zwift
+#   zwift            start Zwift (Linux sign-in, no Windows launcher; first start opens Zwift's sign-in page)
+#   zwift --launcher start Zwift through the Windows launcher instead
+#   zwift login      sign in to Zwift again (e.g. to switch accounts)
+#   zwift logout     sign out and forget the stored sign-in
 #   zwift doctor     check Bluetooth / ANT+ / install health
 #   zwift kill       force-stop everything in the Zwift prefix
 #   zwift log        show the path of the last run's log
@@ -74,11 +77,19 @@ case "${1:-}" in
          print } END { print n+0 > "/dev/stderr" }' "$B" > "$R.tmp" 2>"$R.count" && mv "$R.tmp" "$R"
     echo "Removed $(cat "$R.count") cached Bluetooth entries (backup: $B). Pair your devices again in Zwift."
     rm -f "$R.count"; exit 0 ;;
-  -h|--help) sed -n '2,7p' "$SELF"; exit 0 ;;
+  login|logout|status) exec python3 "$DATA/zwift-auth.py" "$1" ;;
+  -h|--help) sed -n '2,10p' "$SELF"; exit 0 ;;
 esac
 
+# Native start (default): sign in with zwift-auth.py and start ZwiftApp.exe directly, the way
+# ZwiftLauncher.exe would. --launcher (or NATIVE_LOGIN=0 in zwift.conf) uses the Windows launcher.
+NATIVE="${NATIVE_LOGIN:-1}"
+[ "${1:-}" = --launcher ] && { NATIVE=0; shift; }
+
 if pgrep -f 'ZwiftApp\.exe' >/dev/null; then echo "Zwift is already running."; exit 0; fi
-[ -f "$ZDIR/ZwiftLauncher.exe" ] || { echo "Zwift is not installed in $PFX - run install.sh" >&2; exit 1; }
+if [ "$NATIVE" = 1 ] && [ -f "$ZDIR/ZwiftApp.exe" ] && [ -f "$DATA/LinuxZwiftLauncher.exe" ]; then :
+elif [ -f "$ZDIR/ZwiftLauncher.exe" ]; then NATIVE=0
+else echo "Zwift is not installed in $PFX - run install.sh" >&2; exit 1; fi
 # Zwift's updater can put the Windows libusb0.dll back; keep the ANT+ bridge placeholder in place.
 [ "$DO_ANT" = 1 ] && [ -f "$DATA/libusb0-placeholder.dll" ] && \
   cp -f "$DATA/libusb0-placeholder.dll" "$PFX/drive_c/windows/system32/libusb0.dll"
@@ -86,9 +97,25 @@ if pgrep -f 'ZwiftApp\.exe' >/dev/null; then echo "Zwift is already running."; e
 ble_release   # in case a previous session crashed or was killed
 ble_preflight
 cd "$ZDIR" || exit 1
-echo "Starting Zwift (log: $LOG)"
-"$UMU" "$ZDIR/ZwiftLauncher.exe" "$@" >"$LOG" 2>&1 &
-UMU_PID=$!
+if [ "$NATIVE" = 1 ]; then
+  TOKEN="$(mktemp "$DATA/.token.XXXXXX")" || exit 1   # read and deleted by LinuxZwiftLauncher.exe
+  python3 "$DATA/zwift-auth.py" token "$TOKEN" || { rm -f "$TOKEN"; exit 1; }
+  # The game records which launcher started it; use the installed launcher's version when known.
+  LV="$(grep -o 'version="[0-9.]*"' "$ZDIR/Launcher_ver_cur.xml" 2>/dev/null | grep -o '[0-9.]*' | head -1)"
+  [ -z "$LV" ] || [ "$LV" = 0.0.0 ] && LV="${LAUNCHER_VERSION:-1.2.0}"
+  # On a Wayland desktop, use Wine's Wayland driver. Through XWayland (GNOME, NVIDIA) the game renders
+  # but the window never updates, so it looks frozen and GNOME reports "steam_app_0 is not responding".
+  # ZWIFT_X11=1 forces XWayland.
+  [ -n "${WAYLAND_DISPLAY:-}" ] && [ "${ZWIFT_X11:-0}" != 1 ] && export PROTON_ENABLE_WAYLAND=1
+  echo "Starting Zwift without the Windows launcher (log: $LOG)"
+  "$UMU" "$DATA/LinuxZwiftLauncher.exe" "Z:$TOKEN" "$LV" >"$LOG" 2>&1 &
+  UMU_PID=$!
+  ( sleep 120; rm -f "$TOKEN" ) &   # in case the game never started
+else
+  echo "Starting Zwift (log: $LOG)"
+  "$UMU" "$ZDIR/ZwiftLauncher.exe" "$@" >"$LOG" 2>&1 &
+  UMU_PID=$!
+fi
 
 # The launcher stays in the tray after the game quits and keeps the prefix alive.
 # Once ZwiftApp.exe has run and exited, shut the prefix down so the session ends.

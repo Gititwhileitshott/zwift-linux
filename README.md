@@ -4,12 +4,8 @@ Run the official **Zwift for Windows** app on Linux, with your **Bluetooth and A
 
 > Unofficial community project. Not made, supported or endorsed by Zwift, Inc. You need your own Zwift account. Zwift itself is downloaded from Zwift's own servers and is not modified.
 
-> [!WARNING]
-> **Not working at the moment (October 2026).** Zwift's launcher update 1.2.0 (built October 15, 2026) broke this project. Zwift requires the launcher to log in, and the new launcher closes about 3 seconds after it opens under Wine/Proton. The installer still finishes and prints "Zwift is ready.", but the game never downloads and you can't log in.
->
-> **Why:** the new launcher draws its login screen with a newer type of embedded web view (WebView2's composition control). That control depends on a Windows graphics API (Windows.Graphics) that Wine doesn't implement yet, so the launcher fails during startup and exits. Earlier launcher versions used the standard WebView2 control, which works under Wine.
->
-> **What's next:** we plan to add the missing Windows graphics API to Wine. Until that lands, please don't rely on this installer. Existing installs that still have an older launcher may keep working until the launcher updates itself.
+> [!NOTE]
+> **October 2026: works again, without Zwift's Windows launcher.** Zwift's launcher 1.2.0 (built October 15, 2026) closes about 3 seconds after it opens under Wine/Proton, because its login screen uses a WebView2 control that needs Windows graphics APIs Wine doesn't have. zwift-linux 1.1.0 no longer needs the launcher: `zwift` signs you in on Zwift's own sign-in page and starts the game directly, and the installer downloads the game straight from Zwift's servers. Verified on an NVIDIA RTX 4090 (GNOME, Wayland) with a ride in Watopia at a steady 58 FPS. The installer's direct game download is new and hasn't been tested on a fresh install yet. See [Signing in without the launcher](#signing-in-without-the-launcher).
 
 ## Project overview
 
@@ -48,10 +44,10 @@ The installer explains each step as it goes. Things to expect:
 - It downloads GE-Proton (about 560 MB). Downloads are checked against official checksums.
 - It asks for your password once (`sudo`) to allow ANT+ USB sticks and to switch on Bluetooth. Typing your password shows nothing on screen; that's normal.
 - The first setup installs Windows components (.NET, fonts) and **takes several minutes**. If a box says `rundll32.exe - This application could not be started`, click **No**.
-- The **Zwift launcher opens and downloads the game** (about 2 GB). When it finishes, **close the Zwift launcher window, go back to the terminal and press Enter.**
+- The **Zwift launcher may open briefly** and close by itself. When the launcher is gone, **go back to the terminal and press Enter.** The installer then downloads the game (about 2 GB) directly from Zwift.
 - When you see **"Zwift is ready."** you're done. If it lists commands under "run these yourself", copy and paste them into the terminal.
 
-**5. Ride.** Open **Zwift** from your app menu, or type `zwift` in a terminal. Log in, and your Bluetooth and ANT+ devices appear on the pairing screen just like on Windows. If you use an ANT+ stick, unplug it and plug it back in once after installing.
+**5. Ride.** Open **Zwift** from your app menu, or type `zwift` in a terminal. The first time, a small window shows Zwift's sign-in page. Log in, and your Bluetooth and ANT+ devices appear on the pairing screen just like on Windows. If you use an ANT+ stick, unplug it and plug it back in once after installing.
 
 **Tips**
 - Make sure your trainer and sensors aren't connected to another app or your phone (Zwift Companion, Wahoo, Garmin Connect), because many only allow one connection at a time.
@@ -74,7 +70,7 @@ The installer:
 3. adds the ANT+ bridge to that GE-Proton copy;
 4. asks for `sudo` once to add a udev rule for ANT+ sticks (`0fcf:1008`, `0fcf:1009`) and start the Bluetooth service (`--no-sudo` prints the commands instead);
 5. creates the Wine prefix `~/Games/zwift`. The first run installs .NET 4.8, fonts and WebView2 automatically, which takes several minutes;
-6. downloads and installs Zwift (the launcher downloads about 2 GB; close it when finished and press Enter);
+6. installs Zwift and, if the launcher can't download the game (launcher 1.2.0 can't under Wine), downloads it directly from Zwift's update server (about 2 GB, every file checked against Zwift's manifest);
 7. installs the `zwift` command and an app menu entry, and sets Windows DPI from your desktop scale.
 
 Re-running `./install.sh` updates an existing install and skips finished steps.
@@ -84,7 +80,8 @@ Options: `--dpi N` (96 = 100%, 144 = 150%, 192 = 200%), `--prefix DIR`, `--setup
 ## Requirements
 
 - x86_64 PC, any glibc distro: Arch, CachyOS, Manjaro, EndeavourOS, Fedora, Nobara, Bazzite, Debian, Ubuntu, Mint, Pop!_OS, openSUSE, SteamOS (desktop mode), …
-- `curl`, `tar`, Python 3.10+ (only if your distro has no `umu-launcher` package)
+- `curl`, `tar`, Python 3 (3.10+ if your distro has no `umu-launcher` package)
+- For the sign-in window: WebKitGTK 6 with its Python bindings (PyGObject with GTK 4 and WebKitGTK 6.0; without them your web browser is used)
 - **BlueZ** (`bluez` package; preinstalled on desktop distros) and a Bluetooth 4.0+ adapter, for Bluetooth sensors
 - An ANT+ USB stick (Garmin/Dynastream USB-2 or USB-m, or compatible) for ANT+ sensors
 - A GPU with working OpenGL drivers (Mesa, or NVIDIA proprietary). Zwift is CPU-bound; 6 GB VRAM recommended.
@@ -94,7 +91,9 @@ Options: `--dpi N` (96 = 100%, 144 = 150%, 192 = 200%), `--prefix DIR`, `--setup
 
 | Command | What it does |
 | --- | --- |
-| `zwift` | Start Zwift. Before starting it checks that Bluetooth scanning works (resetting a stuck adapter); when the game exits, the tray launcher is shut down too. |
+| `zwift` | Start Zwift without the Windows launcher: signs in with Zwift's own sign-in page (first start, or when the sign-in expires) and starts the game directly. Before starting it checks that Bluetooth scanning works (resetting a stuck adapter); when the game exits, the tray launcher is shut down too. |
+| `zwift --launcher` | Start Zwift through the Windows launcher instead (also used when the game files aren't installed yet) |
+| `zwift login` / `zwift logout` / `zwift status` | Sign in again (e.g. switch account), sign out, or show whether you are signed in |
 | `zwift doctor` | Check the install, Bluetooth adapter, ANT+ stick (live test through Wine) and what the last Zwift session paired |
 | `zwift kill` | Force-stop everything in the Zwift prefix |
 | `zwift log` | Path of the last run's log |
@@ -130,13 +129,36 @@ Other distros use the same GE-Proton build and runtime container, so they're exp
 | --- | --- | --- |
 | WinRT `Windows.Devices.Bluetooth` / `Windows.Devices.Radios` (in `BleWin10Lib.dll`) | Not implemented in stock Wine | GE-Proton 11-8 BLE support (Evan Thomas, David Szendrei), `PROTON_ENABLE_WINEBTH=1` |
 | Dynastream `ANT_DLL.dll` → `libusb0.dll` + `libusb0.sys` kernel driver | Wine can't load Windows kernel drivers, so no stick is found | `ant-libusb/`: a Wine builtin `libusb0.dll` that forwards the libusb-win32 API to Linux usbfs through a Wine unix library |
-| .NET 4.8 + WebView2 launcher | wine-mono makes the launcher exit (code 200) | GE-Proton's `umu-zwift` fix installs real .NET 4.8 and WebView2 |
+| .NET 4.8 + WebView2 launcher | wine-mono makes the launcher exit (code 200); launcher 1.2.0 also needs WinRT composition types Wine lacks | Not needed: `zwift-auth.py` + `LinuxZwiftLauncher.exe` do the launcher's sign-in and game start (below). GE-Proton's `umu-zwift` fix still installs .NET 4.8 and WebView2 for `zwift --launcher` |
+
+### Signing in without the launcher
+
+The launcher's only job before the game starts is an OpenID Connect sign-in against Zwift's Keycloak
+server, which `share/zwift-auth.py` repeats with the same public endpoints and client:
+
+1. `GET https://us-or-rly101.zwift.com/api/auth` returns the realm (`zwift`) and auth server (`https://secure.zwift.com/auth/`).
+2. Zwift's sign-in page opens in a small WebKitGTK window (or your browser if WebKitGTK 6 is missing):
+   `…/realms/zwift/protocol/openid-connect/auth?client_id=Game_Launcher&redirect_uri=http://zwift/&login=true&response_type=code`.
+   The window uses a throwaway session, so no cookies are kept.
+3. The redirect to `http://zwift/?code=…` is caught and the code is exchanged at `…/openid-connect/token`
+   (`grant_type=authorization_code`, `client_id=Game_Launcher`).
+4. The game is started with the launcher's exact command line,
+   `"ZwiftApp.exe" --launcher_version=<v> --token=<token response JSON>` (ZwiftApp's own help text documents
+   `--token=jsonToken`). `zwift-start/LinuxZwiftLauncher.exe` (source `zwift-start.c`) builds it with `CreateProcessW` because the token
+   JSON's quotes must reach the game unescaped. The token is handed over in a mode-600 file that the helper
+   deletes as soon as it has read it.
+
+The refresh token is kept in `~/.local/share/zwift-linux/auth.json` (mode 600) so later starts skip the
+sign-in page; `zwift logout` ends the session at Zwift and deletes it. Your password is only ever typed
+into Zwift's own page. `zwift-auth.py` always verifies Zwift's TLS certificates and has no proxy option. `tools/record-login.py` is a
+developer-only mitmproxy addon (not installed) that logs the real launcher's traffic with passwords, codes
+and tokens removed, for checking the flow against a new launcher.
 
 The ANT+ bridge source is in `ant-libusb/src`; `ant-libusb/test/antprobe.exe` reproduces Zwift's access pattern (async reads plus interrupt writes) against a real stick.
 
 ## Report for Zwift
 
-[docs/zwift-report.md](docs/zwift-report.md) explains, for Zwift's developers, what fails under Wine and what fixes it. It is a draft and is updated as the fixes for launcher 1.2.0 land.
+[docs/zwift-report.md](docs/zwift-report.md) explains, for Zwift's developers, what fails under Wine and what fixes it. It is a draft and is updated as the remaining work lands.
 
 ## Licences and credits
 

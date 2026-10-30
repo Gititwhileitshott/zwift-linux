@@ -24,6 +24,7 @@ grep -qs 'Windows build via GE-Proton' "$APPS/zwift.desktop" && rm -f "$APPS/zwi
 command -v update-desktop-database >/dev/null && update-desktop-database "$APPS" 2>/dev/null
 echo "removed app menu entry"
 
+[ -f "$DATA/zwift-auth.py" ] && python3 "$DATA/zwift-auth.py" logout >/dev/null 2>&1   # end the Zwift session
 if [ -d "$DATA" ]; then rm -rf "$DATA" && echo "removed $DATA (GE-Proton runner, umu-launcher copy, ANT+ bridge)"; fi
 [ -d "$HOME/.cache/ge-proton-ble" ] && rm -rf "$HOME/.cache/ge-proton-ble" && echo "removed old Bluetooth patch build cache"
 
