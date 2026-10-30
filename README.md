@@ -16,7 +16,7 @@ Zwift has no Linux version. The Windows version can run through **Wine** (the Wi
 - A small **ANT+ bridge** (`ant-libusb/`, included with source) lets Zwift's ANT+ code reach USB ANT+ sticks through Linux.
 - A **`zwift` command** starts the game and quietly fixes the most common Linux Bluetooth glitch (scanning that silently fails after a crash), plus helper commands to check and repair your setup.
 
-The result: the unmodified Windows app runs with Bluetooth and ANT+ working directly. No decompiling or reverse engineering of Zwift was needed.
+The result: the unmodified Windows app runs with Bluetooth and ANT+ working directly.
 
 ## Quick start for Linux beginners
 

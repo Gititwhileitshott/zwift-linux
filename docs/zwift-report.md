@@ -8,7 +8,7 @@ Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 
 
 ## Summary
 
-- Zwift for Windows runs on Linux through Wine/Proton without being decompiled or modified.
+- Zwift for Windows runs on Linux through Wine/Proton without modifying any of Zwift's files.
   Up to launcher 1.1.18 it ran with Bluetooth LE and ANT+ trainers connected directly
   (verified 13 Oct 2026, details below).
 - Launcher 1.2.0 (built 15 Oct 2026) stopped working under GE-Proton 11-8. Its login screen uses
