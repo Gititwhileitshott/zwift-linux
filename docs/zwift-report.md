@@ -21,7 +21,8 @@ Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 
 - Logging in works without the launcher: a native sign-in plus a small starter runs ZwiftApp 1.124.0 directly (finding 2).
 - A ride in Watopia ran at a steady 58 FPS (findings 2 and 3).
 - The launcher's HTTPS calls work once .NET is allowed to use modern TLS (finding 6).
-- **(pending)** Getting launcher 1.2.0's login screen itself to run, and a fix for a desktop "not responding" warning (finding 3).
+- On NVIDIA under GNOME, the game needs Wine's native Wayland driver; under XWayland the picture froze (finding 3).
+- **(in progress)** Getting launcher 1.2.0's own login screen to run (finding 1).
 
 ## Test setup
 
@@ -49,8 +50,11 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
   Windows 10 or updating WebView2 to 156 does not help. Launcher 1.1.18 used the standard
   `WebView2` (HWND) control and works.
 - **Newer Wine:** upstream Wine 11.20 ships the Windows metadata file that defines
-  `Windows.Graphics.SizeInt32`. Not yet confirmed whether the launcher gets past this point with it.
-- **Fix:** **(pending, milestone "Get WebView2 launcher working in Wine")**
+  `Windows.Graphics.SizeInt32`. In current testing the launcher still fails in the composition
+  control, now on `Windows.UI.Composition`, which Wine doesn't implement.
+- **Fix:** **(in progress)** a shim that makes the launcher use the classic window-based WebView2
+  control instead of the composition control. Until it lands, the native login in finding 2 starts
+  the game without the launcher.
 - **Zwift-side suggestion:** fall back to the HWND-based `WebView2` control when composition
   initialisation fails, instead of exiting. This would also cover Windows machines with broken
   graphics drivers.
@@ -79,10 +83,14 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
 - **Current build:** ZwiftApp 1.124.0 under GE-Proton 11-8 on an NVIDIA RTX 4090 ran at about
   58 FPS with vsync on (so capped by the display).
 - **Ride:** steady 58 FPS riding in Watopia.
-- **Desktop "not responding" warning:** GNOME reported the game window (`steam_app_0`) as not
-  responding. The suspect is the ride-highlight video capture looping, because Proton's media
-  back-end (`winedmo`) has no MP4 muxer. Turning capture off with `VIDEO_CAPTURE_ENABLED=0` in
-  `prefs.xml` is being retested. **(pending)**
+- **Frozen display on NVIDIA under XWayland:** on a GNOME Wayland desktop with an NVIDIA GPU,
+  running the game through XWayland left the picture frozen (frames never reached the screen) and
+  GNOME reported the window (`steam_app_0`) as not responding.
+- **Fix:** run the game with Wine's native Wayland driver instead of XWayland. With that, the
+  menus, watching another rider and exiting all worked normally.
+- Ride-highlight video capture was also turned off (`VIDEO_CAPTURE_ENABLED=0` in `prefs.xml`),
+  because Proton's media back-end (`winedmo`) has no MP4 muxer. Whether capture on its own causes
+  problems hasn't been tested separately.
 
 ### 4. Bluetooth LE trainers and sensors
 
