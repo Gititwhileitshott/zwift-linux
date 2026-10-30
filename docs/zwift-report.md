@@ -15,7 +15,8 @@ Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 
   composition control, which needs WinRT types (`Windows.Graphics.SizeInt32` and related
   composition APIs) that Wine does not provide. The launcher catches the error, reports it to
   Sentry and exits about 3 seconds after starting.
-- **(pending)** Fix for launcher 1.2.0, login, game performance, and sensors on the current build.
+- Bluetooth LE and ANT+ are solved by the existing fixes (findings 4 and 5) and need no further work.
+- **(pending)** Fix for launcher 1.2.0, login, and game performance on the current build.
 
 ## Test setup
 
@@ -69,7 +70,6 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
   empty. zwift-linux test-scans before launch and power-cycles the adapter when it's stuck.
 - **Zwift-side suggestion:** retry starting the BLE watcher if it fails to start, rather than
   treating the first failure as final.
-- **Result on the current build:** **(pending, milestone "Connect sensors and trainers")**
 
 ### 5. ANT+ USB sticks
 
@@ -79,7 +79,6 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
 - **Fix:** zwift-linux ships a Wine builtin `libusb0.dll` (`ant-libusb/`, LGPL) that forwards the
   libusb-win32 API to Linux usbfs. Verified: ANT+ FE-C and power devices listed with live data,
   full ride on ANT+.
-- **Result on the current build:** **(pending, milestone "Connect sensors and trainers")**
 
 ### 6. Smaller issues
 
@@ -96,7 +95,7 @@ Collected from the suggestions above, smallest change first:
 
 1. Fall back to the HWND `WebView2` control when the composition control fails (finding 1).
 2. Retry the BLE watcher start on failure (finding 4).
-3. **(pending)** further items from milestones 1-4.
+3. **(pending)** further items from the launcher, login and performance work.
 
 ## How to reproduce
 
