@@ -11,10 +11,12 @@ Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 
 - Zwift for Windows runs on Linux through Wine/Proton without being decompiled or modified.
   Up to launcher 1.1.18 it ran with Bluetooth LE and ANT+ trainers connected directly
   (verified 13 Oct 2026, details below).
-- Launcher 1.2.0 (built 15 Oct 2026) stopped working under Wine. Its login screen uses WebView2's
-  composition control, which needs WinRT types (`Windows.Graphics.SizeInt32` and related
-  composition APIs) that Wine does not provide. The launcher catches the error, reports it to
-  Sentry and exits about 3 seconds after starting.
+- Launcher 1.2.0 (built 15 Oct 2026) stopped working under GE-Proton 11-8. Its login screen uses
+  WebView2's composition control, which needs WinRT types (`Windows.Graphics.SizeInt32` and
+  related composition APIs) that the Wine in GE-Proton 11-8 does not provide. The launcher catches
+  the error, reports it to Sentry and exits about 3 seconds after starting. Newer upstream Wine
+  (11.20) ships the Windows metadata that defines `SizeInt32`; whether that is enough for the
+  launcher is still being tested.
 - Bluetooth LE and ANT+ are solved by the existing fixes (findings 4 and 5) and need no further work.
 - **(pending)** Fix for launcher 1.2.0, login, and game performance on the current build.
 
@@ -37,11 +39,13 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
 
 - **Windows behaviour:** the launcher hosts its login page in
   `Microsoft.Web.WebView2.Wpf.WebView2CompositionControl`.
-- **Under Wine:** `TryInitializeD3DImage()` throws
+- **Under Wine (GE-Proton 11-8):** `TryInitializeD3DImage()` throws
   `System.TypeLoadException: Could not find Windows Runtime type 'Windows.Graphics.SizeInt32'`.
   The launcher catches it, sends a Sentry report and exits with code 0. Setting the prefix to
   Windows 10 or updating WebView2 to 156 does not help. Launcher 1.1.18 used the standard
   `WebView2` (HWND) control and works.
+- **Newer Wine:** upstream Wine 11.20 ships the Windows metadata file that defines
+  `Windows.Graphics.SizeInt32`. Not yet confirmed whether the launcher gets past this point with it.
 - **Fix:** **(pending, milestone "Get WebView2 launcher working in Wine")**
 - **Zwift-side suggestion:** fall back to the HWND-based `WebView2` control when composition
   initialisation fails, instead of exiting. This would also cover Windows machines with broken
