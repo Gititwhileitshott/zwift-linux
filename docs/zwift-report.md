@@ -19,7 +19,9 @@ Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 
   launcher is still being tested.
 - Bluetooth LE and ANT+ are solved by the existing fixes (findings 4 and 5) and need no further work.
 - Logging in works without the launcher: a native sign-in plus a small starter runs ZwiftApp 1.124.0 directly (finding 2).
-- **(pending)** Fix for launcher 1.2.0 itself, and a full-ride performance check.
+- A ride in Watopia ran at a steady 58 FPS (findings 2 and 3).
+- The launcher's HTTPS calls work once .NET is allowed to use modern TLS (finding 6).
+- **(pending)** Getting launcher 1.2.0's login screen itself to run, and a fix for a desktop "not responding" warning (finding 3).
 
 ## Test setup
 
@@ -62,17 +64,25 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
   files came straight from Zwift's CDN, so the launcher was not needed at all. ZwiftApp 1.124.0
   under GE-Proton 11-8 logged in, loaded the rider profile, and ran with OpenGL 4.6 and working
   audio on the first try.
-- **Still to confirm:** a 10-15 minute ride with this login.
+- **Parent-process check:** ZwiftApp checks that its parent process path contains
+  `ZwiftLauncher.exe`, `ZwiftHelper.exe` or `devenv.exe`. If it doesn't, ZwiftApp starts
+  `ZwiftLauncher.exe` and exits, or shows "ERROR ZA1" when that fails. Our starter is therefore
+  named `LinuxZwiftLauncher.exe` and built as a GUI-subsystem program, so no console window opens.
+- **Ride test:** a ride in Watopia with this login ran at a steady 58 FPS.
 - **Zwift-side suggestion:** a supported way to start ZwiftApp with a token from a system browser
-  login (device-code or loopback redirect) would remove the need for the embedded launcher on
-  Linux and Steam Deck.
+  login (device-code or loopback redirect), without the parent-process check, would remove the
+  need for the embedded launcher on Linux and Steam Deck.
 
 ### 3. Game performance
 
 - **Known so far:** 55-93 FPS on a Radeon 890M with Zwift 1.123.0 under GE-Proton 11-7/11-8.
 - **Current build:** ZwiftApp 1.124.0 under GE-Proton 11-8 on an NVIDIA RTX 4090 ran at about
   58 FPS with vsync on (so capped by the display).
-- **Still to confirm:** smoothness over a full ride. **(pending, milestone "Get Zwift game running smoothly")**
+- **Ride:** steady 58 FPS riding in Watopia.
+- **Desktop "not responding" warning:** GNOME reported the game window (`steam_app_0`) as not
+  responding. The suspect is the ride-highlight video capture looping, because Proton's media
+  back-end (`winedmo`) has no MP4 muxer. Turning capture off with `VIDEO_CAPTURE_ENABLED=0` in
+  `prefs.xml` is being retested. **(pending)**
 
 ### 4. Bluetooth LE trainers and sensors
 
@@ -97,7 +107,16 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
   libusb-win32 API to Linux usbfs. Verified: ANT+ FE-C and power devices listed with live data,
   full ride on ANT+.
 
-### 6. Smaller issues
+### 6. HTTPS from the launcher (.NET TLS versions)
+
+- **Under Wine:** the .NET Framework in the prefix offered only old TLS versions, so the
+  launcher's requests to Zwift's HTTPS endpoints failed.
+- **Fix:** set `SchUseStrongCrypto` and `SystemDefaultTlsVersions` in the prefix registry. With
+  these, Zwift's HTTPS endpoints are reachable.
+- **Zwift-side suggestion:** have the launcher request TLS 1.2+ explicitly instead of relying on
+  the system default.
+
+### 7. Smaller issues
 
 - `.NET 4.8` and WebView2 must be real Microsoft installs; with wine-mono the launcher exits with
   code 200. GE-Proton's `umu-zwift` fix installs them.
@@ -113,7 +132,8 @@ Collected from the suggestions above, smallest change first:
 1. Fall back to the HWND `WebView2` control when the composition control fails (finding 1).
 2. Retry the BLE watcher start on failure (finding 4).
 3. Support starting the game with a token from a system browser login (finding 2).
-4. **(pending)** further items from the launcher, login and performance work.
+4. Request TLS 1.2+ explicitly in the launcher (finding 6).
+5. **(pending)** further items from the launcher, login and performance work.
 
 ## How to reproduce
 
