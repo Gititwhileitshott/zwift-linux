@@ -56,8 +56,9 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
 ### 2. Logging in without the launcher's web view
 
 - **Question:** can a user sign in to Zwift on Linux if the launcher's embedded browser can't run?
-- **Result (30 Oct 2026):** yes. A small native sign-in helper (`zwift-auth.py`) gets the user's
-  token from Zwift's normal login, and a starter (`zwift-start.exe`) hands it to the game. The game
+- **Result (30 Oct 2026):** yes. A native sign-in helper (`zwift-auth.py`) and a small starter
+  (`zwift-start.exe`) log the user in and start the game without the launcher. **(details of how
+  the helpers work to be added when they are committed to this repo)** The game
   files came straight from Zwift's CDN, so the launcher was not needed at all. ZwiftApp 1.124.0
   under GE-Proton 11-8 logged in, loaded the rider profile, and ran with OpenGL 4.6 and working
   audio on the first try.
