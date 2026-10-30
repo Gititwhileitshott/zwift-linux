@@ -134,6 +134,10 @@ Other distros use the same GE-Proton build and runtime container, so they're exp
 
 The ANT+ bridge source is in `ant-libusb/src`; `ant-libusb/test/antprobe.exe` reproduces Zwift's access pattern (async reads plus interrupt writes) against a real stick.
 
+## Report for Zwift
+
+[docs/zwift-report.md](docs/zwift-report.md) explains, for Zwift's developers, what fails under Wine and what fixes it. It is a draft and is updated as the fixes for launcher 1.2.0 land.
+
 ## Licences and credits
 
 - Scripts: MIT (`LICENSE`).
