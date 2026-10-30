@@ -18,7 +18,8 @@ Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 
   (11.20) ships the Windows metadata that defines `SizeInt32`; whether that is enough for the
   launcher is still being tested.
 - Bluetooth LE and ANT+ are solved by the existing fixes (findings 4 and 5) and need no further work.
-- **(pending)** Fix for launcher 1.2.0, login, and game performance on the current build.
+- Logging in works without the launcher: a native sign-in plus a small starter runs ZwiftApp 1.124.0 directly (finding 2).
+- **(pending)** Fix for launcher 1.2.0 itself, and a full-ride performance check.
 
 ## Test setup
 
@@ -28,6 +29,7 @@ Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 
 | GPU | AMD Radeon 890M (Mesa) |
 | Runner | GE-Proton 11-8 via umu-launcher 1.4.4 (`GAMEID=umu-zwift`) |
 | Zwift | Game 1.123.0 (build 167050); launcher 1.1.18 (working) and 1.2.0 (failing) |
+| Second PC | NVIDIA RTX 4090, ZwiftApp 1.124.0 (native login test) |
 | Sensors | Wahoo KICKR BIKE (BLE FTMS), Garmin fenix 7 (BLE HR), Dynastream ANTUSB-m (ANT+) |
 
 ## Findings
@@ -54,12 +56,22 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
 ### 2. Logging in without the launcher's web view
 
 - **Question:** can a user sign in to Zwift on Linux if the launcher's embedded browser can't run?
-- **Result:** **(pending, milestone "Build our own Zwift login")**
+- **Result (30 Oct 2026):** yes. A small native sign-in helper (`zwift-auth.py`) gets the user's
+  token from Zwift's normal login, and a starter (`zwift-start.exe`) hands it to the game. The game
+  files came straight from Zwift's CDN, so the launcher was not needed at all. ZwiftApp 1.124.0
+  under GE-Proton 11-8 logged in, loaded the rider profile, and ran with OpenGL 4.6 and working
+  audio on the first try.
+- **Still to confirm:** a 10-15 minute ride with this login.
+- **Zwift-side suggestion:** a supported way to start ZwiftApp with a token from a system browser
+  login (device-code or loopback redirect) would remove the need for the embedded launcher on
+  Linux and Steam Deck.
 
 ### 3. Game performance
 
 - **Known so far:** 55-93 FPS on a Radeon 890M with Zwift 1.123.0 under GE-Proton 11-7/11-8.
-- **Result on the current build:** **(pending, milestone "Get Zwift game running smoothly")**
+- **Current build:** ZwiftApp 1.124.0 under GE-Proton 11-8 on an NVIDIA RTX 4090 ran at about
+  58 FPS with vsync on (so capped by the display).
+- **Still to confirm:** smoothness over a full ride. **(pending, milestone "Get Zwift game running smoothly")**
 
 ### 4. Bluetooth LE trainers and sensors
 
@@ -99,7 +111,8 @@ Collected from the suggestions above, smallest change first:
 
 1. Fall back to the HWND `WebView2` control when the composition control fails (finding 1).
 2. Retry the BLE watcher start on failure (finding 4).
-3. **(pending)** further items from the launcher, login and performance work.
+3. Support starting the game with a token from a system browser login (finding 2).
+4. **(pending)** further items from the launcher, login and performance work.
 
 ## How to reproduce
 
