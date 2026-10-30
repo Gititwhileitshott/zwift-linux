@@ -5,9 +5,10 @@ This is what the Zwift launcher does before login: read Zwift_ver_cur.xml, fetch
 manifest it names, then download each file and check its CRC32. Doing it here lets
 an install (or a test) get ZwiftApp.exe and its data without the WebView2 launcher.
 
-Usage: zwift-fetch-game.py DEST [--jobs N] [--verify-only]
+Usage: zwift-fetch-game.py DEST [--jobs N] [--verify-only] [--if-outdated]
 DEST is the Zwift install folder, e.g. "$WINEPREFIX/drive_c/Program Files (x86)/Zwift".
 Files already present with the right size and CRC are skipped, so re-running resumes.
+--if-outdated does nothing when DEST already has the current version (quick check before each start).
 """
 import argparse, concurrent.futures as cf, os, sys, urllib.request, xml.etree.ElementTree as ET, zlib
 
@@ -38,9 +39,18 @@ def main():
     ap.add_argument("dest")
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--verify-only", action="store_true")
+    ap.add_argument("--if-outdated", action="store_true")
     a = ap.parse_args()
 
-    cur = ET.fromstring(get(ROOT + "Zwift_ver_cur.xml"))
+    cur_raw = get(ROOT + "Zwift_ver_cur.xml")
+    cur = ET.fromstring(cur_raw)
+    local = os.path.join(a.dest, "Zwift_ver_cur.xml")
+    if a.if_outdated and os.path.exists(local) and os.path.exists(os.path.join(a.dest, "ZwiftApp.exe")):
+        try:
+            if ET.parse(local).getroot().get("version") == cur.get("version"):
+                return
+        except ET.ParseError:
+            pass
     print(f"Zwift {cur.get('sversion')}, manifest {cur.get('manifest')}")
     man_raw = get(ROOT + cur.get("manifest"))
     man = ET.fromstring(man_raw)
@@ -79,11 +89,12 @@ def main():
                 print(f"{i}/{len(files)} files, {done / 1e9:.2f}/{total / 1e9:.2f} GB, {bad} failed", flush=True)
 
     # The launcher keeps the current version files next to the game; keep copies for it.
-    with open(os.path.join(a.dest, "Zwift_ver_cur.xml"), "wb") as f:
-        f.write(get(ROOT + "Zwift_ver_cur.xml"))
+    if bad:
+        sys.exit(1)
+    with open(local, "wb") as f:   # written last: marks the version as complete
+        f.write(cur_raw)
     with open(os.path.join(a.dest, cur.get("manifest")), "wb") as f:
         f.write(man_raw)
-    sys.exit(1 if bad else 0)
 
 
 if __name__ == "__main__":

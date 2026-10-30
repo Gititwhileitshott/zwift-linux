@@ -22,7 +22,7 @@ The result: the unmodified Windows app runs with Bluetooth and ANT+ working dire
 
 You will copy and paste a few commands into a **terminal** (a window where you type commands). Everything installs into your own home folder; your password is asked for only once, for two optional system settings.
 
-**What you need:** a 64-bit PC running Linux, an internet connection (about 3 GB of downloads), a Bluetooth adapter and/or an ANT+ USB stick, and your Zwift login.
+**What you need:** a 64-bit PC running Linux, an internet connection (about 6 GB of downloads), a Bluetooth adapter and/or an ANT+ USB stick, and your Zwift login.
 
 **1. Open a terminal.** On most desktops press `Ctrl` + `Alt` + `T`, or open your app menu and search for "Terminal".
 
@@ -44,7 +44,7 @@ The installer explains each step as it goes. Things to expect:
 - It downloads GE-Proton (about 560 MB). Downloads are checked against official checksums.
 - It asks for your password once (`sudo`) to allow ANT+ USB sticks and to switch on Bluetooth. Typing your password shows nothing on screen; that's normal.
 - The first setup installs Windows components (.NET, fonts) and **takes several minutes**. If a box says `rundll32.exe - This application could not be started`, click **No**.
-- The **Zwift launcher may open briefly** and close by itself. When the launcher is gone, **go back to the terminal and press Enter.** The installer then downloads the game (about 2 GB) directly from Zwift.
+- It installs Zwift's launcher files, then **downloads the game directly from Zwift** (about 5 GB the first time). Nothing to click; just wait.
 - When you see **"Zwift is ready."** you're done. If it lists commands under "run these yourself", copy and paste them into the terminal.
 
 **5. Ride.** Open **Zwift** from your app menu, or type `zwift` in a terminal. The first time, a small window shows Zwift's sign-in page. Log in, and your Bluetooth and ANT+ devices appear on the pairing screen just like on Windows. If you use an ANT+ stick, unplug it and plug it back in once after installing.
@@ -70,7 +70,7 @@ The installer:
 3. adds the ANT+ bridge to that GE-Proton copy;
 4. asks for `sudo` once to add a udev rule for ANT+ sticks (`0fcf:1008`, `0fcf:1009`) and start the Bluetooth service (`--no-sudo` prints the commands instead);
 5. creates the Wine prefix `~/Games/zwift`. The first run installs .NET 4.8, fonts and WebView2 automatically, which takes several minutes;
-6. installs Zwift and, if the launcher can't download the game (launcher 1.2.0 can't under Wine), downloads it directly from Zwift's update server (about 2 GB, every file checked against Zwift's manifest);
+6. installs Zwift's launcher files with ZwiftSetup, then downloads or updates the game directly from Zwift's update server (about 5 GB the first time, every file checked against Zwift's manifest). `zwift` repeats this update check before each start, and skips it when offline;
 7. installs the `zwift` command and an app menu entry, and sets Windows DPI from your desktop scale.
 
 Re-running `./install.sh` updates an existing install and skips finished steps.

@@ -305,8 +305,8 @@ done
 # ---------------------------------------------------------------------------------------------
 step "6/7 Zwift"
 ZDIR="$PFX/drive_c/Program Files (x86)/Zwift"
-if [ -f "$ZDIR/ZwiftApp.exe" ]; then
-  ok "already installed (Zwift updates itself from the launcher)"
+if [ -f "$ZDIR/ZwiftLauncher.exe" ]; then
+  ok "Zwift launcher already installed"
 else
   if [ -z "$SETUP_EXE" ]; then
     for c in "$HERE/ZwiftSetup.exe" "$HOME/Downloads/ZwiftSetup.exe"; do [ -f "$c" ] && SETUP_EXE="$c" && break; done
@@ -316,30 +316,24 @@ else
     curl -fL --progress-bar -o "$SETUP_EXE" "$ZWIFT_SETUP_URL" \
       || die "could not download ZwiftSetup.exe - download it from zwift.com and pass --setup FILE"
   fi
-  echo "  Installing from $SETUP_EXE"
-  echo "  The Zwift launcher will open and download the game (about 2 GB)."
+  echo "  Installing the Zwift launcher from $SETUP_EXE"
   ( "$UMU" "$SETUP_EXE" /SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL >"$DATA/install-zwift.log" 2>&1 ) &
   UMU_PID=$!
-  if interactive; then
-    read -r -p "  >>> When the download has finished, close the Zwift launcher and press Enter... " _ </dev/tty
-  else
-    echo "  waiting for the game download to finish..."
-    for _ in $(seq 1 720); do
-      [ -f "$ZDIR/ZwiftApp.exe" ] && { sleep 60; break; }
-      kill -0 "$UMU_PID" 2>/dev/null || break
-      sleep 5
-    done
-  fi
+  # The installer starts the WebView2 launcher when it's done; zwift doesn't need it, so stop the prefix
+  # once the launcher files are in place and fetch the game directly instead.
+  for _ in $(seq 1 360); do
+    [ -f "$ZDIR/ZwiftLauncher.exe" ] && { sleep 15; break; }
+    kill -0 "$UMU_PID" 2>/dev/null || break
+    sleep 5
+  done
   "$GE/files/bin/wineserver" -k 2>/dev/null || true
   wait "$UMU_PID" 2>/dev/null || true
   [ -f "$ZDIR/ZwiftLauncher.exe" ] || die "Zwift did not install - see $DATA/install-zwift.log"
-  if [ ! -f "$ZDIR/ZwiftApp.exe" ]; then
-    # Launcher 1.2.0 exits under Wine before it downloads anything; fetch the game from Zwift's update CDN.
-    echo "  The launcher did not download the game; downloading it directly from Zwift (about 2 GB)..."
-    python3 "$HERE/share/zwift-fetch-game.py" "$ZDIR" || warn "game download incomplete - re-run install.sh to resume"
-  fi
-  [ -f "$ZDIR/ZwiftApp.exe" ] && ok "Zwift installed" || warn "game files not downloaded yet"
+  ok "Zwift launcher installed"
 fi
+echo "  Downloading or updating the game from Zwift's servers (about 5 GB the first time)"
+python3 "$HERE/share/zwift-fetch-game.py" "$ZDIR" --if-outdated \
+  && ok "Zwift game files up to date" || die "game download failed - re-run install.sh to resume"
 # Zwift's installer copies the Windows libusb0.dll (needs a kernel driver Wine can't load); keep the bridge.
 [ "$DO_ANT" = 1 ] && install -Dm 644 "$DATA/libusb0-placeholder.dll" "$PFX/drive_c/windows/system32/libusb0.dll"
 
@@ -353,8 +347,8 @@ rm -rf "$DATA/ble-patch"
 install -m 755 "$HERE/share/zwift-launcher.sh" "$DATA/zwift-launcher.sh"
 install -m 755 "$HERE/share/zwift-doctor.sh" "$DATA/zwift-doctor.sh"
 install -m 644 "$HERE/share/zwift-display.sh" "$DATA/zwift-display.sh"
-install -m 755 "$HERE/share/zwift-auth.py" "$DATA/zwift-auth.py"
 install -m 755 "$HERE/share/zwift-fetch-game.py" "$DATA/zwift-fetch-game.py"
+install -m 755 "$HERE/share/zwift-auth.py" "$DATA/zwift-auth.py"
 install -m 644 "$HERE/zwift-start/LinuxZwiftLauncher.exe" "$DATA/LinuxZwiftLauncher.exe"
 rm -f "$DATA/zwift-start.exe"   # old name; ZwiftApp only accepts a parent whose path contains ZwiftLauncher.exe
 cat > "$DATA/zwift.conf" <<EOF

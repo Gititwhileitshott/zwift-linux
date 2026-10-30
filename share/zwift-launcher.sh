@@ -114,6 +114,10 @@ ble_release   # in case a previous session crashed or was killed
 ble_preflight
 cd "$ZDIR" || exit 1
 if [ "$NATIVE" = 1 ]; then
+  # No Windows launcher to update the game: bring it to Zwift's current version first (quick when current;
+  # skipped when offline).
+  [ -f "$DATA/zwift-fetch-game.py" ] && { python3 "$DATA/zwift-fetch-game.py" "$ZDIR" --if-outdated \
+    || echo "zwift: could not check for a game update; starting the installed version" >&2; }
   TOKEN="$(mktemp "$DATA/.token.XXXXXX")" || exit 1   # read and deleted by LinuxZwiftLauncher.exe
   python3 "$DATA/zwift-auth.py" token "$TOKEN" || { rm -f "$TOKEN"; exit 1; }
   # The game records which launcher started it; use the installed launcher's version when known.
