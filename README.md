@@ -121,6 +121,7 @@ The full desktop × GPU × distro matrix, with tested and untested setups kept a
 ## Troubleshooting
 
 - **Zwift window frozen, black, or "not responding":** try the other display driver: `zwift --display x11` or `zwift --display wayland`. `zwift doctor` shows which one is in use and why.
+- **Zwift window can't be resized or its edges are off screen:** `zwift` sets the windowed size to 75% of your desktop on first start (`WINWIDTH`/`WINHEIGHT` in Zwift's prefs.xml). If you changed it by hand, delete those two lines and start again.
 - **Launcher is tiny:** run `./install.sh --dpi 144` (150%) or `--dpi 192` (200%).
 - **Bluetooth devices don't show up:** check `zwift doctor`. The adapter must be powered on (`bluetoothctl power on`) and the trainer must not be connected to another app or phone. Pairing can take 15-30 s under Wine.
 - **No Bluetooth devices at all on the pairing screen:** Linux's Bluetooth service refuses to scan (`org.bluez.Error.InProgress`), typically after a session that stopped mid-connection. Zwift doesn't retry, so nothing appears. `zwift` now test-scans before each start and power-cycles the adapter if it's stuck; by hand: `bluetoothctl power off; bluetoothctl power on`. `zwift doctor` checks this too.

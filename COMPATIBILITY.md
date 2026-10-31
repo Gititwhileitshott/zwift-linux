@@ -58,6 +58,7 @@ Ubuntu machine yet.
   Zwift, GNOME stops sending frame callbacks and the game slows to about 1 FPS. It returns to full
   speed as soon as Zwift is visible again. Keep Zwift uncovered during a ride, or use
   `--display x11` where XWayland works (Mesa GPUs).
+- **Window size:** Zwift's windowed mode only becomes a real, resizable window once prefs.xml has WINWIDTH/WINHEIGHT; `zwift` writes 75% of the desktop on first start. Toggle full screen in Zwift's settings as usual.
 - **Ride-highlight recording** can't save clips (Proton's FFmpeg has no MP4 muxer), and Zwift
   retries the encoder several times a second. `zwift` turns it off in `prefs.xml` unless
   `ZWIFT_VIDEO_CAPTURE=1` is set.

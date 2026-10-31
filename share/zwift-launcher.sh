@@ -105,10 +105,23 @@ else echo "Zwift is not installed in $PFX - run install.sh" >&2; exit 1; fi
 
 # Ride-highlight recording can't save clips under Proton (its FFmpeg has no MP4 muxer) and retries the
 # encoder several times a second, so switch it off unless the user asks for it (ZWIFT_VIDEO_CAPTURE=1).
-PREFS="$PFX/drive_c/users/steamuser/Documents/Zwift/prefs.xml"
-if [ "${ZWIFT_VIDEO_CAPTURE:-0}" != 1 ] && [ -f "$PREFS" ] && ! grep -q '<VIDEO_CAPTURE_ENABLED>' "$PREFS"; then
-  sed -i 's#</CONFIG>#    <VIDEO_CAPTURE_ENABLED>0</VIDEO_CAPTURE_ENABLED>\n    </CONFIG>#' "$PREFS"
-fi
+# prefs.xml is under AppData\Local in current Zwift builds, Documents in older ones.
+pref_set_default() {   # pref_set_default FILE KEY VALUE: add <KEY>VALUE</KEY> to <CONFIG> unless KEY is set
+  grep -q "<$2>" "$1" || sed -i "s#</CONFIG>#    <$2>$3</$2>\n    </CONFIG>#" "$1"
+}
+for PREFS in "$PFX"/drive_c/users/*/AppData/Local/Zwift/prefs.xml "$PFX"/drive_c/users/*/Documents/Zwift/prefs.xml; do
+  [ -f "$PREFS" ] || continue
+  [ "${ZWIFT_VIDEO_CAPTURE:-0}" = 1 ] || pref_set_default "$PREFS" VIDEO_CAPTURE_ENABLED 0
+  # Without WINWIDTH/WINHEIGHT Zwift opens its window exactly screen-sized, so the frame's edges sit off
+  # screen and it can't be resized. Start windowed mode at 75% of the desktop; Zwift keeps resized sizes.
+  if ! grep -q '<WINWIDTH>' "$PREFS"; then
+    wh="$(python3 -c 'import gi; gi.require_version("Gtk", "4.0"); from gi.repository import Gtk, Gdk
+Gtk.init(); g = Gdk.Display.get_default().get_monitors().get_item(0).get_geometry(); print(g.width, g.height)' 2>/dev/null)"
+    read -r w h <<<"${wh:-2133 1200}"
+    pref_set_default "$PREFS" WINWIDTH $(( w * 3 / 4 / 2 * 2 ))
+    pref_set_default "$PREFS" WINHEIGHT $(( h * 3 / 4 / 2 * 2 ))
+  fi
+done
 
 ble_release   # in case a previous session crashed or was killed
 ble_preflight
