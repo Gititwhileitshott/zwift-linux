@@ -12,13 +12,15 @@ Files already present with the right size and CRC are skipped, so re-running res
 """
 import argparse, concurrent.futures as cf, os, sys, urllib.request, xml.etree.ElementTree as ET, zlib
 
-ROOT = "http://cdn.zwift.com/gameassets/Zwift_Updates_Root/"
+ROOT = "https://cdn.zwift.com/gameassets/Zwift_Updates_Root/"   # HTTPS only, certificates verified
 
 
 def get(url, tries=4):
     for i in range(tries):
         try:
             with urllib.request.urlopen(url, timeout=60) as r:
+                if not r.geturl().startswith("https://"):   # never accept a redirect to plain HTTP
+                    raise SystemExit(f"zwift-fetch-game: {url} redirected to {r.geturl()}; refusing non-HTTPS download")
                 return r.read()
         except OSError as e:
             if i == tries - 1:

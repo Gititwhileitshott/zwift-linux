@@ -27,7 +27,7 @@ APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 PFX="${ZWIFT_PREFIX:-$HOME/Games/zwift}"
 SETUP_EXE=""
 DPI="${ZWIFT_DPI:-}"
-USE_SUDO=1 DO_BLE=1 DO_ANT=1 ASSUME_YES=0 CHECK_ONLY=0
+USE_SUDO=1 DO_BLE=1 DO_ANT=1 ASSUME_YES=0 CHECK_ONLY=0 BUILD_STARTER="${ZWIFT_BUILD_STARTER:-0}"
 
 usage() {
   cat <<EOF
@@ -43,6 +43,8 @@ Options:
   --no-sudo        Skip the udev rule and Bluetooth service steps (prints them instead)
   --no-ble         Don't enable Bluetooth LE (use Zwift Companion instead)
   --no-ant         Don't install the ANT+ USB bridge
+  --build-starter  Build LinuxZwiftLauncher.exe from zwift-start/zwift-start.c instead of using the
+                   prebuilt copy (needs the MinGW-w64 cross compiler, x86_64-w64-mingw32-gcc)
   -y, --yes        Don't ask questions (the game download is waited for automatically)
   --check          Only check this PC (distro, Python, sign-in window, Bluetooth, sandbox, display/GPU) and exit
   -h, --help       This help
@@ -59,6 +61,7 @@ while [ $# -gt 0 ]; do
     --no-sudo) USE_SUDO=0; shift ;;
     --no-ble) DO_BLE=0; shift ;;
     --no-ant) DO_ANT=0; shift ;;
+    --build-starter) BUILD_STARTER=1; shift ;;
     -y|--yes) ASSUME_YES=1; shift ;;
     --check) CHECK_ONLY=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -371,7 +374,26 @@ install -m 755 "$HERE/share/zwift-doctor.sh" "$DATA/zwift-doctor.sh"
 install -m 644 "$HERE/share/zwift-display.sh" "$DATA/zwift-display.sh"
 install -m 755 "$HERE/share/zwift-fetch-game.py" "$DATA/zwift-fetch-game.py"
 install -m 755 "$HERE/share/zwift-auth.py" "$DATA/zwift-auth.py"
-install -m 644 "$HERE/zwift-start/LinuxZwiftLauncher.exe" "$DATA/LinuxZwiftLauncher.exe"
+# The game starter: prebuilt by default, or built here from its source with --build-starter.
+if [ "$BUILD_STARTER" = 1 ]; then
+  if ! command -v x86_64-w64-mingw32-gcc >/dev/null; then
+    case " $DISTRO_ID $DISTRO_LIKE " in
+      *" arch "*|*" cachyos "*|*" manjaro "*|*" endeavouros "*) mingw_pkg="mingw-w64-gcc" ;;
+      *" fedora "*|*" rhel "*|*" nobara "*|*" bazzite "*) mingw_pkg="mingw64-gcc" ;;
+      *" debian "*|*" ubuntu "*) mingw_pkg="gcc-mingw-w64-x86-64" ;;
+      *" opensuse"*|*" suse "*) mingw_pkg="mingw64-cross-gcc" ;;
+      *) mingw_pkg="mingw-w64 (x86_64 cross compiler)" ;;
+    esac
+    die "--build-starter needs x86_64-w64-mingw32-gcc: $(pkg_hint "$mingw_pkg")"
+  fi
+  x86_64-w64-mingw32-gcc -municode -O2 -s -Wl,--subsystem,windows \
+    -o "$DATA/LinuxZwiftLauncher.exe" "$HERE/zwift-start/zwift-start.c" || die "building LinuxZwiftLauncher.exe failed"
+  ok "LinuxZwiftLauncher.exe built from zwift-start/zwift-start.c"
+else
+  (cd "$HERE/zwift-start" && sha256sum -c --quiet SHA256SUMS) || die "zwift-start/LinuxZwiftLauncher.exe doesn't match SHA256SUMS (use --build-starter to build it from source)"
+  install -m 644 "$HERE/zwift-start/LinuxZwiftLauncher.exe" "$DATA/LinuxZwiftLauncher.exe"
+  ok "LinuxZwiftLauncher.exe (prebuilt, sha256 $(sha256sum "$DATA/LinuxZwiftLauncher.exe" | cut -c1-16)...; --build-starter builds it from source)"
+fi
 rm -f "$DATA/zwift-start.exe"   # old name; ZwiftApp only accepts a parent whose path contains ZwiftLauncher.exe
 cat > "$DATA/zwift.conf" <<EOF
 # written by zwift-linux $ZL_VERSION installer - re-run install.sh to change
