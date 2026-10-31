@@ -112,7 +112,7 @@ Verified on CachyOS (kernel 7.2.9, AMD Radeon 890M), Zwift 1.123.0, 13 Oct 2026:
 | --- | --- |
 | Bluetooth LE smart trainer (Wahoo KICKR BIKE, FTMS) | Power, cadence and controllable trainer; full rides with grade changes, all commands acknowledged |
 | Bluetooth LE heart rate (Garmin fenix 7) | Paired and streaming |
-| ANT+ USB stick (Dynastream ANTUSB-m) | Zwift lists ANT+ FE-C and power devices with live power |
+| ANT+ USB stick (Dynastream ANTUSB-m) | Zwift lists ANT+ FE-C and power devices with live power; full rides on ANT+ |
 | Frame rate | 55-93 FPS |
 
 Verified on CachyOS (GNOME 51 Wayland, NVIDIA RTX 4090, driver 615.78), Zwift 1.124.0, 30 Oct 2026, with zwift-linux 1.1.0 (no Windows launcher, Wine's Wayland driver): sign-in, menus, a 10-minute ride and spectating at 58-60 FPS (vsync), clean exit. Also verified 30 Oct 2026 on a freshly installed CachyOS PC (GNOME, AMD Renoir integrated GPU, XWayland), Zwift 1.124.0: clean install, all sensors found, and a 41-minute ride at a steady 30 FPS (capped by its 4K 30 Hz display) with a Garmin fenix 7 heart rate over Bluetooth once USB power saving was turned off for the Bluetooth adapter (the installer now does this).
@@ -123,7 +123,6 @@ The full desktop × GPU × distro matrix, with tested and untested setups kept a
 
 - **Zwift window frozen, black, or "not responding":** try the other display driver: `zwift --display x11` or `zwift --display wayland`. `zwift doctor` shows which one is in use and why.
 - **Zwift window can't be resized or its edges are off screen:** `zwift` sets the windowed size to 75% of your desktop on first start (`WINWIDTH`/`WINHEIGHT` in Zwift's prefs.xml). If you changed it by hand, delete those two lines and start again.
-- **Launcher is tiny:** run `./install.sh --dpi 144` (150%) or `--dpi 192` (200%).
 - **Bluetooth devices don't show up:** check `zwift doctor`. The adapter must be powered on (`bluetoothctl power on`) and the trainer must not be connected to another app or phone. Pairing can take 15-30 s under Wine.
 - **No Bluetooth devices at all on the pairing screen:** Linux's Bluetooth service refuses to scan (`org.bluez.Error.InProgress`), typically after a session that stopped mid-connection. Zwift doesn't retry, so nothing appears. `zwift` now test-scans before each start and power-cycles the adapter if it's stuck; by hand: `bluetoothctl power off; bluetoothctl power on`. `zwift doctor` checks this too.
 - **A Bluetooth sensor drops mid-ride:** USB power saving on the Bluetooth adapter can drop links. The installer adds a udev rule that turns it off; `zwift doctor` shows whether it's on. If a sensor still drops, Zwift may not reconnect it on its own (a known open issue); use ANT+ for that sensor as a fallback.

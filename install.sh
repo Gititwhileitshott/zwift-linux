@@ -39,7 +39,7 @@ Zwift for Linux installer $ZL_VERSION
 Options:
   --prefix DIR     Wine prefix for Zwift (default: ~/Games/zwift, or \$ZWIFT_PREFIX)
   --setup FILE     Use this ZwiftSetup.exe instead of downloading it
-  --dpi N          Windows DPI for the launcher (96 = 100%, 144 = 150%, 192 = 200%).
+  --dpi N          Windows DPI for the Zwift prefix (96 = 100%, 144 = 150%, 192 = 200%).
                    Default: detected from your desktop scale.
   --no-sudo        Skip the steps that need sudo (udev rules, AppArmor profile, Bluetooth service)
                    and print the commands instead
@@ -316,7 +316,7 @@ if [[ "$DPI" =~ ^[0-9]+$ ]] && [ "$DPI" -ge 96 ] && [ "$DPI" -le 480 ]; then
   "$UMU" reg add 'HKCU\Control Panel\Desktop' /v LogPixels /t REG_DWORD /d "$DPI" /f >/dev/null 2>&1 \
     && ok "Windows DPI set to $DPI ($((DPI * 100 / 96))%)" || warn "could not set DPI"
 else
-  echo "  DPI not detected; if the launcher looks tiny, re-run with --dpi 144 (150%) or --dpi 192 (200%)"
+  echo "  DPI not detected; to set it, re-run with --dpi 144 (150%) or --dpi 192 (200%)"
 fi
 # Without these, .NET offers only SSL3/TLS 1.0 and Zwift's servers refuse the launcher's HTTPS calls
 # ("Could not create SSL/TLS secure channel"). Set in both the 64-bit and 32-bit registry views.
