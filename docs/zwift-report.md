@@ -1,10 +1,9 @@
 # Zwift for Windows on Linux: what breaks under Wine, and what fixes it
 
-Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 2026.
+Prepared for Zwift, Inc. by the zwift-linux project. Last updated 31 Oct 2026.
 
-> **Status of this draft.** Sections marked **(pending)** describe work that is still in progress.
-> They list the question being answered, not a result. Nothing in them should be read as verified
-> until the section is filled in.
+> Items marked **(in progress)** or **(pending)** are not finished and are not verified results.
+> Everything else was verified on real hardware on the dates given.
 
 ## Summary
 
