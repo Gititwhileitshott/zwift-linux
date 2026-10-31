@@ -70,6 +70,13 @@ else
         fi
       fi
     fi
+    # USB autosuspend on the adapter can drop BLE links (supervision timeout) mid-ride
+    bt="$(readlink -f /sys/class/bluetooth/hci0/device/.. 2>/dev/null)"
+    if [ -n "$bt" ] && [ -f "$bt/power/control" ]; then
+      if [ "$(cat "$bt/power/control")" = auto ]; then
+        note "USB power saving (autosuspend) is on for the Bluetooth adapter; sensors may drop mid-ride - re-run install.sh to turn it off"
+      else pass "USB power saving is off for the Bluetooth adapter"; fi
+    fi
     if ! pgrep -f 'ZwiftApp\.exe' >/dev/null; then
       for mac in $(grep -oiE '_ORG_BLUEZ_HCI[0-9]+&[0-9A-F]{12}' "$PFX/system.reg" 2>/dev/null | grep -oiE '[0-9A-F]{12}$' | tr 'a-f' 'A-F' | sort -u | sed 's/../&:/g; s/:$//'); do
         timeout 5 bluetoothctl info "$mac" 2>/dev/null | grep -q 'Connected: yes' \

@@ -5,7 +5,7 @@ Run the official **Zwift for Windows** app on Linux, with your **Bluetooth and A
 > Unofficial community project. Not made, supported or endorsed by Zwift, Inc. You need your own Zwift account. Zwift itself is downloaded from Zwift's own servers and is not modified.
 
 > [!NOTE]
-> **October 2026: works again, without Zwift's Windows launcher.** Zwift's launcher 1.2.0 (built October 15, 2026) closes about 3 seconds after it opens under Wine/Proton, because its login screen uses a WebView2 control that needs Windows graphics APIs Wine doesn't have. zwift-linux 1.1.0 no longer needs the launcher: `zwift` signs you in on Zwift's own sign-in page and starts the game directly, and the installer downloads the game straight from Zwift's servers. Verified on an NVIDIA RTX 4090 (GNOME, Wayland) with a ride in Watopia at a steady 58 FPS. The display settings are chosen per desktop session and GPU; see [COMPATIBILITY.md](COMPATIBILITY.md) for what has and hasn't been tested. The installer's direct game download is new and hasn't been tested on a fresh install yet. See [Signing in without the launcher](#signing-in-without-the-launcher).
+> **October 2026: works again, without Zwift's Windows launcher.** Zwift's launcher 1.2.0 (built October 15, 2026) closes about 3 seconds after it opens under Wine/Proton, because its login screen uses a WebView2 control that needs Windows graphics APIs Wine doesn't have. zwift-linux 1.1.0 no longer needs the launcher: `zwift` signs you in on Zwift's own sign-in page and starts the game directly, and the installer downloads the game straight from Zwift's servers. Verified on an NVIDIA RTX 4090 (GNOME, Wayland) with a ride in Watopia at a steady 58 FPS. The display settings are chosen per desktop session and GPU; see [COMPATIBILITY.md](COMPATIBILITY.md) for what has and hasn't been tested. A fresh install on an AMD Radeon 890M PC (GNOME, XWayland) also worked, with a 41-minute ride on Bluetooth heart rate. See [Signing in without the launcher](#signing-in-without-the-launcher).
 
 ## Project overview
 
@@ -68,7 +68,7 @@ The installer:
 1. uses your distro's `umu-launcher`, or downloads the official umu zipapp (checksum-verified);
 2. downloads **GE-Proton11-8** into `~/.local/share/zwift-linux` (checksum-verified, about 560 MB);
 3. adds the ANT+ bridge to that GE-Proton copy;
-4. asks for `sudo` once to add a udev rule for ANT+ sticks (`0fcf:1008`, `0fcf:1009`) and start the Bluetooth service (`--no-sudo` prints the commands instead);
+4. asks for `sudo` once to add udev rules for ANT+ sticks (`0fcf:1008`, `0fcf:1009`) and to keep USB Bluetooth adapters out of power saving, and to start the Bluetooth service (`--no-sudo` prints the commands instead);
 5. creates the Wine prefix `~/Games/zwift`. The first run installs .NET 4.8, fonts and WebView2 automatically, which takes several minutes;
 6. installs Zwift's launcher files with ZwiftSetup, then downloads or updates the game directly from Zwift's update server (about 5 GB the first time, every file checked against Zwift's manifest). `zwift` repeats this update check before each start, and skips it when offline;
 7. installs the `zwift` command and an app menu entry, and sets Windows DPI from your desktop scale.
@@ -114,7 +114,7 @@ Verified on CachyOS (kernel 7.2.9, AMD Radeon 890M), Zwift 1.123.0, 13 Oct 2026:
 | ANT+ USB stick (Dynastream ANTUSB-m) | Zwift lists ANT+ FE-C and power devices with live power |
 | Frame rate | 55-93 FPS |
 
-Verified on CachyOS (GNOME 51 Wayland, NVIDIA RTX 4090, driver 615.78), Zwift 1.124.0, 30 Oct 2026, with zwift-linux 1.1.0 (no Windows launcher, Wine's Wayland driver): sign-in, menus, a 10-minute ride and spectating at 58-60 FPS (vsync), clean exit. Bluetooth and ANT+ haven't been re-checked on this build yet.
+Verified on CachyOS (GNOME 51 Wayland, NVIDIA RTX 4090, driver 615.78), Zwift 1.124.0, 30 Oct 2026, with zwift-linux 1.1.0 (no Windows launcher, Wine's Wayland driver): sign-in, menus, a 10-minute ride and spectating at 58-60 FPS (vsync), clean exit. Also verified 30 Oct 2026 on a freshly installed CachyOS PC (GNOME, AMD Radeon 890M, XWayland), Zwift 1.124.0: clean install, all sensors found, and a 41-minute ride with a Garmin fenix 7 heart rate over Bluetooth once USB power saving was turned off for the Bluetooth adapter (the installer now does this).
 
 The full desktop × GPU × distro matrix, with tested and untested setups kept apart, is in [COMPATIBILITY.md](COMPATIBILITY.md). Reports welcome: include `zwift doctor` output.
 
@@ -124,6 +124,7 @@ The full desktop × GPU × distro matrix, with tested and untested setups kept a
 - **Launcher is tiny:** run `./install.sh --dpi 144` (150%) or `--dpi 192` (200%).
 - **Bluetooth devices don't show up:** check `zwift doctor`. The adapter must be powered on (`bluetoothctl power on`) and the trainer must not be connected to another app or phone. Pairing can take 15-30 s under Wine.
 - **No Bluetooth devices at all on the pairing screen:** Linux's Bluetooth service refuses to scan (`org.bluez.Error.InProgress`), typically after a session that stopped mid-connection. Zwift doesn't retry, so nothing appears. `zwift` now test-scans before each start and power-cycles the adapter if it's stuck; by hand: `bluetoothctl power off; bluetoothctl power on`. `zwift doctor` checks this too.
+- **A Bluetooth sensor drops mid-ride:** USB power saving on the Bluetooth adapter can drop links. The installer adds a udev rule that turns it off; `zwift doctor` shows whether it's on. If a sensor still drops, Zwift may not reconnect it on its own (a known open issue); use ANT+ for that sensor as a fallback.
 - **Bluetooth pairing starts but never completes** (Zwift falls back to ANT+ or nothing): quit Zwift, run `zwift reset-bluetooth`, then pair again. `zwift` also disconnects, at start and exit, Bluetooth devices a previous session left connected to the PC.
 - **ANT+ stick not found:** run `zwift doctor`. If the device node isn't writable, re-run `./install.sh` (udev rule) and replug the stick.
 - **Terminal noise:** the run log is in `zwift log`. `RoUnregisterForApartmentShutdown … aborting` after Zwift has closed is harmless (a missing stub in Wine).

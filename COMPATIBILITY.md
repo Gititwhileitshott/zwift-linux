@@ -30,7 +30,7 @@ and uses the other path from the next start. Delete that file to go back to the 
 | Mesa 26.2 (llvmpipe) through XWayland in Weston | Works: GL 4.6 compatibility profile, window updates | 2026-10-30 | off-screen test, software GL stands in for AMD/Intel |
 | Mesa 26.2 (llvmpipe), Wine Wayland driver in Weston | Starts: OpenGL via EGL works; frame rate can't be judged headless | 2026-10-30 | off-screen test |
 | AMD Radeon 890M, GNOME, CachyOS, XWayland, Zwift 1.123 | Works: 55-93 FPS, Bluetooth + ANT+ | 2026-10-13 | real rides |
-| AMD Radeon 890M ("workout"), Zwift 1.124 | to test: XWayland and Wayland | | |
+| AMD Radeon 890M ("workout"), GNOME, fresh CachyOS, XWayland, Zwift 1.124 | **Works**: clean install, all sensors found; fenix 7 BLE HR dropped twice with USB autosuspend on, stayed connected for 41 min with it off | 2026-10-30 | real rides |
 | KDE Plasma, wlroots (Sway, Hyprland), Intel GPU, NVIDIA < 595, X11 session | not tested yet; covered by the rules above | | |
 
 ## Distros
@@ -51,6 +51,8 @@ The AppArmor profile is written from the published Ubuntu rules and hasn't been 
 Ubuntu machine yet.
 
 ## Known limitations
+
+- **Bluetooth reconnect** after a lost link didn't happen once on workout (fenix 7 kept advertising, Zwift scanned for 19 min). Wine does report the device's advertisements again (checked with BlueZ), so the cause is further along (connect/GATT path) and still open. With USB autosuspend off the link hasn't dropped since; ANT+ HR is the fallback.
 
 - **Wine Wayland driver: a hidden window drops to about 1 FPS.** When another window fully covers
   Zwift, GNOME stops sending frame callbacks and the game slows to about 1 FPS. It returns to full

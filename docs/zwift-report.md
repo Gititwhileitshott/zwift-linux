@@ -17,7 +17,7 @@ Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 
   the error, reports it to Sentry and exits about 3 seconds after starting. Newer upstream Wine
   (11.20) ships the Windows metadata that defines `SizeInt32`; whether that is enough for the
   launcher is still being tested.
-- Bluetooth LE and ANT+ are solved by the existing fixes (findings 4 and 5) and need no further work.
+- Bluetooth LE and ANT+ work with the existing fixes (findings 4 and 5). A 41-minute ride with Bluetooth HR on the current build held once USB power saving was turned off for the adapter; reconnecting after a dropped link is still open.
 - Logging in works without the launcher: a native sign-in plus a small starter runs ZwiftApp 1.124.0 directly (finding 2).
 - A ride in Watopia ran at a steady 58 FPS (findings 2 and 3).
 - The launcher's HTTPS calls work once .NET is allowed to use modern TLS (finding 6).
@@ -33,6 +33,7 @@ Prepared for Zwift, Inc. by the zwift-linux project. Draft, last updated 30 Oct 
 | Runner | GE-Proton 11-8 via umu-launcher 1.4.4 (`GAMEID=umu-zwift`) |
 | Zwift | Game 1.123.0 (build 167050); launcher 1.1.18 (working) and 1.2.0 (failing) |
 | Second PC | NVIDIA RTX 4090, ZwiftApp 1.124.0 (native login test) |
+| Third PC | AMD Radeon 890M, GNOME, fresh CachyOS install, XWayland, Zwift 1.124.0, fenix 7 BLE HR |
 | Distros (installer checks only) | Arch, Fedora 44, Ubuntu 22.04/24.04/26.04, Debian 13, openSUSE Tumbleweed (containers) |
 | Sensors | Wahoo KICKR BIKE (BLE FTMS), Garmin fenix 7 (BLE HR), Dynastream ANTUSB-m (ANT+) |
 
@@ -96,8 +97,9 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
 - **Other setups:** zwift-linux picks the display driver from the session and GPU (Wayland driver
   for NVIDIA 595+ on Wayland, XWayland for Mesa GPUs and older NVIDIA, X11 on X11 sessions) and
   falls back to the other one if OpenGL fails to start. The tested and untested combinations are
-  listed in [COMPATIBILITY.md](../COMPATIBILITY.md); AMD on the current build, KDE, wlroots
-  desktops and Intel GPUs are still untested.
+  listed in [COMPATIBILITY.md](../COMPATIBILITY.md). AMD on the current build was verified on
+  30 Oct 2026 (fresh install, XWayland, 41-minute ride); KDE, wlroots desktops, Intel GPUs, NVIDIA
+  older than 595 and X11 sessions are still untested.
 - **Known limitation:** with Wine's Wayland driver, the game drops to about 1 FPS while another
   window fully covers it (the compositor stops sending frame callbacks) and recovers when visible.
 - **Ride-highlight recording:** clips can't be saved because Proton's media back-end (`winedmo`)
@@ -120,8 +122,16 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
 - **Pitfall found:** after a session ends mid-connection, BlueZ can refuse `StartDiscovery` with
   `org.bluez.Error.InProgress`. Wine logs it and Zwift never retries, so the pairing screen stays
   empty. zwift-linux test-scans before launch and power-cycles the adapter when it's stuck.
-- **Zwift-side suggestion:** retry starting the BLE watcher if it fails to start, rather than
-  treating the first failure as final.
+- **Dropped links (30 Oct 2026, AMD PC with a MediaTek 0e8d:0608 adapter):** the fenix 7 HR link
+  dropped twice mid-ride, with "ACL packet for unknown connection handle" in the kernel log. USB
+  autosuspend on the adapter was the trigger. With autosuspend off (zwift-linux adds a udev rule),
+  it stayed connected for a full 41-minute ride.
+- **Open issue:** after one drop, Zwift didn't reconnect the sensor even though it kept scanning for
+  19 minutes and Wine was reporting the device's advertisements again. The cause lies further along
+  the connect/GATT path and isn't found yet. ANT+ is the fallback.
+- **Zwift-side suggestions:** retry starting the BLE watcher if it fails to start, rather than
+  treating the first failure as final; and when a paired sensor's link drops, reconnect to it as
+  soon as its advertisements are seen again.
 
 ### 5. ANT+ USB sticks
 
@@ -159,7 +169,8 @@ Collected from the suggestions above, smallest change first:
 3. Support starting the game with a token from a system browser login (finding 2).
 4. Request TLS 1.2+ explicitly in the launcher (finding 6).
 5. Stop retrying the video encoder after repeated failures (finding 3).
-6. **(pending)** further items from the launcher, login and performance work.
+6. Reconnect a dropped BLE sensor when it advertises again (finding 4).
+7. **(pending)** anything further from the launcher 1.2.0 shim work (finding 1).
 
 ## How to reproduce
 

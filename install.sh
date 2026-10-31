@@ -228,6 +228,28 @@ if userns_restricted && [ "$(cat "$APPARMOR_FILE" 2>/dev/null)" != "$APPARMOR_PR
   fi
 fi
 
+# USB autosuspend on Bluetooth adapters (btusb enable_autosuspend=Y on most distros) can make the controller
+# drop BLE links mid-ride ("ACL packet for unknown connection handle" in dmesg); keep USB adapters awake.
+BT_RULE='ACTION=="bind", SUBSYSTEM=="usb", DRIVER=="btusb", RUN+="/bin/sh -c '"'"'echo on > /sys%p/../power/control'"'"'"'
+BT_RULE_FILE=/etc/udev/rules.d/52-zwift-bluetooth-awake.rules
+if [ "$DO_BLE" = 1 ] && [ "$(cat "$BT_RULE_FILE" 2>/dev/null)" != "$BT_RULE" ]; then
+  if [ "$USE_SUDO" = 1 ] && command -v sudo >/dev/null; then
+    echo "  Adding $BT_RULE_FILE to turn off USB power saving for Bluetooth adapters (sudo):"
+    if echo "$BT_RULE" | sudo tee "$BT_RULE_FILE" >/dev/null; then
+      sudo udevadm control --reload-rules || true
+      for d in /sys/class/bluetooth/hci*/device/..; do   # apply now, without replugging
+        [ -f "$d/power/control" ] && echo on | sudo tee "$d/power/control" >/dev/null
+      done
+      ok "Bluetooth adapter kept awake"
+    else warn "could not write $BT_RULE_FILE"; fi
+  else
+    manual+=("sudo tee $BT_RULE_FILE <<'RULE'
+$BT_RULE
+RULE
+sudo udevadm control --reload-rules")
+  fi
+fi
+
 if [ "$DO_BLE" = 1 ]; then
   if ! command -v bluetoothctl >/dev/null && ! systemctl list-unit-files bluetooth.service >/dev/null 2>&1; then
     warn "BlueZ (the Linux Bluetooth stack) was not found: $(pkg_hint bluez)"

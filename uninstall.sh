@@ -28,7 +28,7 @@ echo "removed app menu entry"
 if [ -d "$DATA" ]; then rm -rf "$DATA" && echo "removed $DATA (GE-Proton runner, umu-launcher copy, ANT+ bridge)"; fi
 [ -d "$HOME/.cache/ge-proton-ble" ] && rm -rf "$HOME/.cache/ge-proton-ble" && echo "removed old Bluetooth patch build cache"
 
-for f in /etc/udev/rules.d/51-zwift-ant-usb.rules /etc/udev/rules.d/51-ant-usb.rules; do
+for f in /etc/udev/rules.d/51-zwift-ant-usb.rules /etc/udev/rules.d/51-ant-usb.rules /etc/udev/rules.d/52-zwift-bluetooth-awake.rules; do
   if [ -f "$f" ]; then
     echo "removing $f (sudo)"
     sudo rm -f "$f" && sudo udevadm control --reload-rules

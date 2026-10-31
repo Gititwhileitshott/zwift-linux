@@ -147,7 +147,9 @@ while kill -0 "$UMU_PID" 2>/dev/null; do
   sleep 2
 done
 wait "$UMU_PID" 2>/dev/null
-[ "$NATIVE" = 1 ] && zl_check_display "$PFX/drive_c/users/steamuser/Documents/Zwift/Logs/Log.txt"
+# Zwift writes Log.txt under AppData\Local (current builds) or Documents (older ones); check the newest.
+[ "$NATIVE" = 1 ] && zl_check_display "$(ls -t "$PFX"/drive_c/users/*/AppData/Local/Zwift/Logs/Log.txt \
+  "$PFX"/drive_c/users/*/Documents/Zwift/Logs/Log.txt 2>/dev/null | head -1)"
 ble_release
 echo "Zwift closed."
 exit 0

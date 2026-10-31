@@ -28,7 +28,7 @@ zl_gpu_driver() {
   echo "${boot:-unknown}"
 }
 
-zl_nvidia_major() { sed -n 's/^\([0-9]*\)\..*/\1/p' /sys/module/nvidia/version 2>/dev/null; }
+zl_nvidia_major() { sed -n 's/^\([0-9]*\)\..*/\1/p' "${ZL_NVIDIA_VERSION_FILE:-/sys/module/nvidia/version}" 2>/dev/null || true; }
 
 zl_session() {
   if [ -n "${WAYLAND_DISPLAY:-}" ] || [ "${XDG_SESSION_TYPE:-}" = wayland ]; then echo wayland
