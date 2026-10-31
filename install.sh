@@ -6,10 +6,11 @@
 #   * Bluetooth LE  - built into GE-Proton 11-8+, enabled with PROTON_ENABLE_WINEBTH=1
 #   * ANT+ USB      - libusb0.dll bridge shipped in ./ant-libusb (Zwift's ANT driver path -> Linux usbfs)
 #
-# Works on any x86_64 distro with glibc, Python 3.10+, curl and BlueZ (Arch/CachyOS/Manjaro,
-# Fedora/Nobara/Bazzite, Debian/Ubuntu/Mint/Pop!_OS, openSUSE, SteamOS desktop mode, ...).
-# Nothing is compiled. Everything goes into your home directory; sudo is only used for an
-# optional udev rule (ANT+ stick access) and to start the Bluetooth service.
+# Works on any x86_64 distro with glibc, Python 3 (3.10+ without a distro umu-launcher), curl and
+# BlueZ (Arch/CachyOS/Manjaro, Fedora/Nobara/Bazzite, Debian/Ubuntu/Mint/Pop!_OS, openSUSE, SteamOS
+# desktop mode, ...). Nothing is compiled unless you pass --build-starter. Everything goes into your
+# home directory; sudo is only used for optional udev rules (ANT+ stick access, Bluetooth adapter
+# power saving), an AppArmor profile where Ubuntu needs one, and to start the Bluetooth service.
 #
 # Usage: ./install.sh [options]      (run ./install.sh --help)
 set -euo pipefail
@@ -40,12 +41,13 @@ Options:
   --setup FILE     Use this ZwiftSetup.exe instead of downloading it
   --dpi N          Windows DPI for the launcher (96 = 100%, 144 = 150%, 192 = 200%).
                    Default: detected from your desktop scale.
-  --no-sudo        Skip the udev rule and Bluetooth service steps (prints them instead)
+  --no-sudo        Skip the steps that need sudo (udev rules, AppArmor profile, Bluetooth service)
+                   and print the commands instead
   --no-ble         Don't enable Bluetooth LE (use Zwift Companion instead)
   --no-ant         Don't install the ANT+ USB bridge
   --build-starter  Build LinuxZwiftLauncher.exe from zwift-start/zwift-start.c instead of using the
                    prebuilt copy (needs the MinGW-w64 cross compiler, x86_64-w64-mingw32-gcc)
-  -y, --yes        Don't ask questions (the game download is waited for automatically)
+  -y, --yes        Accepted for scripts; the installer currently asks no questions
   --check          Only check this PC (distro, Python, sign-in window, Bluetooth, sandbox, display/GPU) and exit
   -h, --help       This help
 

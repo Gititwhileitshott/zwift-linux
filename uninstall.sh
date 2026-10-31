@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Zwift for Linux - uninstaller
-#   ./uninstall.sh            remove the runner, umu copy, launcher, menu entry and udev rule
+#   ./uninstall.sh            sign out of Zwift and remove the runner, umu copy, zwift command, menu entry,
+#                             udev rules and AppArmor profile
 #   ./uninstall.sh --purge    also delete the Zwift prefix (the installed game and its local settings;
 #                             your rides and profile live in your Zwift account and are not affected)
 set -u

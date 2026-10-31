@@ -12,10 +12,11 @@ with a Wine builtin that implements the same API on top of Linux usbfs:
 * `test/antprobe.exe` – resets the stick and requests its capabilities through the bridge
 * `ant-test.sh` – one-command test (fixes udev permissions, runs antprobe under Wine)
 
-Install into a runner (Wine or Proton dir) and prefix:
+Install into a runner and prefix (`<wine>` is a Wine install dir, or `<proton>/files` for
+Proton/GE-Proton, which is what install.sh uses):
 
-    cp build/x86_64-windows/libusb0.dll <runner>/lib/wine/x86_64-windows/
-    cp build/x86_64-unix/libusb0.so     <runner>/lib/wine/x86_64-unix/
+    cp build/x86_64-windows/libusb0.dll <wine>/lib/wine/x86_64-windows/
+    cp build/x86_64-unix/libusb0.so     <wine>/lib/wine/x86_64-unix/
     cp build/placeholder/libusb0.dll    <prefix>/drive_c/windows/system32/
     WINEDLLOVERRIDES="libusb0=b"        # Zwift's installer drops the Windows DLL in system32
 

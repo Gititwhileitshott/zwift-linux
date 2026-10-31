@@ -25,7 +25,7 @@ and uses the other path from the next start. Delete that file to go back to the 
 | Setup | Result | Date | How |
 | --- | --- | --- | --- |
 | RTX 4090, NVIDIA 615.78, GNOME 51 Wayland, CachyOS, XWayland | **Fails**: game runs at 58 FPS internally, but the full-screen window never updates and input looks dead | 2026-10-30 | real ride |
-| same PC, Wine Wayland driver | **Works**: menus, ride and spectating at 60 FPS (vsync); clean exit | 2026-10-30 | real ride, 10 min |
+| same PC, Wine Wayland driver | **Works**: menus, ride and spectating at 58-60 FPS (vsync); clean exit | 2026-10-30 | real ride, 10 min |
 | same PC, NVIDIA through XWayland in Weston (windowed) | Works: window updates | 2026-10-30 | off-screen test |
 | Mesa 26.2 (llvmpipe) through XWayland in Weston | Works: GL 4.6 compatibility profile, window updates | 2026-10-30 | off-screen test, software GL stands in for AMD/Intel |
 | Mesa 26.2 (llvmpipe), Wine Wayland driver in Weston | Starts: OpenGL via EGL works; frame rate can't be judged headless | 2026-10-30 | off-screen test |

@@ -14,11 +14,11 @@ Prepared for Zwift, Inc. by the zwift-linux project. Last updated 31 Oct 2026.
   WebView2's composition control, which needs WinRT types (`Windows.Graphics.SizeInt32` and
   related composition APIs) that the Wine in GE-Proton 11-8 does not provide. The launcher catches
   the error, reports it to Sentry and exits about 3 seconds after starting. Newer upstream Wine
-  (11.20) ships the Windows metadata that defines `SizeInt32`; whether that is enough for the
-  launcher is still being tested.
+  (11.20) ships the Windows metadata that defines `SizeInt32`, but in testing so far the launcher
+  then fails on `Windows.UI.Composition`, which Wine doesn't implement (finding 1).
 - Bluetooth LE and ANT+ work with the existing fixes (findings 4 and 5). A 41-minute ride with Bluetooth HR on the current build held once USB power saving was turned off for the adapter; reconnecting after a dropped link is still open.
 - Logging in works without the launcher: a native sign-in plus a small starter runs ZwiftApp 1.124.0 directly (finding 2).
-- A ride in Watopia ran at a steady 58 FPS (findings 2 and 3).
+- A ride in Watopia ran at a steady 58 FPS on the NVIDIA PC, and a 41-minute ride on an AMD Renoir iGPU held a steady 30 FPS, its 4K display's 30 Hz limit (findings 2 and 3).
 - The launcher's HTTPS calls work once .NET is allowed to use modern TLS (finding 6).
 - On NVIDIA under GNOME, the game needs Wine's native Wayland driver; under XWayland the picture froze (finding 3).
 - **(in progress)** Getting launcher 1.2.0's own login screen to run (finding 1).
@@ -66,12 +66,12 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
 - **Result (30 Oct 2026):** yes. `share/zwift-auth.py` repeats the launcher's OpenID Connect sign-in
   against Zwift's Keycloak server (client `Game_Launcher`, redirect `http://zwift/`), showing
   Zwift's own sign-in page in a WebKitGTK window with a throwaway session. It exchanges the code at
-  the token endpoint and keeps only the refresh token (mode 600). `LinuxZwiftLauncher.exe`
+  the token endpoint and stores the token response, including the refresh token, in a mode-600 file. `LinuxZwiftLauncher.exe`
   (`zwift-start/zwift-start.c`) then starts ZwiftApp.exe with the launcher's exact command line,
   `"ZwiftApp.exe" --launcher_version=<v> --token=<token JSON>`, through `CreateProcessW`, so the
   JSON's quotes reach the game unescaped. The starter is 69 lines of C; users can install the prebuilt
   copy or build it from source (`./install.sh --build-starter`). The token file is deleted as soon as it has been read. The game
-  files came straight from Zwift's CDN, so the launcher was not needed at all. ZwiftApp 1.124.0
+  files came straight from Zwift's CDN over HTTPS (redirects to plain HTTP are refused), so the launcher was not needed at all. ZwiftApp 1.124.0
   under GE-Proton 11-8 logged in, loaded the rider profile, and ran with OpenGL 4.6 and working
   audio on the first try.
 - **Parent-process check:** ZwiftApp checks that its parent process path contains

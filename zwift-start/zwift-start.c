@@ -6,7 +6,7 @@
  * gives the game the raw command line  "ZwiftApp.exe" --launcher_version=<v> --token={"access_token":...}
  * with the token JSON's quotes unescaped. Passing the token as a normal Unix argument through Wine
  * would escape those quotes, so this helper builds the identical command line with CreateProcessW.
- * TOKENFILE (the token response JSON) is deleted as soon as the game has started.
+ * TOKENFILE (the token response JSON) is deleted as soon as it has been read, before the game starts.
  * Runs in the game folder; waits for the game and returns its exit code.
  *
  * Installed as LinuxZwiftLauncher.exe: at startup ZwiftApp.exe checks its parent process, and unless

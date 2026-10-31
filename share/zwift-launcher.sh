@@ -5,6 +5,7 @@
 #   zwift --display x11|wayland   force Wine's X11 (XWayland) or Wayland driver (default: chosen per GPU, see zwift-display.sh)
 #   zwift login      sign in to Zwift again (e.g. to switch accounts)
 #   zwift logout     sign out and forget the stored sign-in
+#   zwift status     show whether you are signed in
 #   zwift doctor     check Bluetooth / ANT+ / install health
 #   zwift kill       force-stop everything in the Zwift prefix
 #   zwift log        show the path of the last run's log
@@ -79,7 +80,7 @@ case "${1:-}" in
     echo "Removed $(cat "$R.count") cached Bluetooth entries (backup: $B). Pair your devices again in Zwift."
     rm -f "$R.count"; exit 0 ;;
   login|logout|status) exec python3 "$DATA/zwift-auth.py" "$1" ;;
-  -h|--help) sed -n '2,10p' "$SELF"; exit 0 ;;
+  -h|--help) sed -n '2,12p' "$SELF"; exit 0 ;;
 esac
 
 # Native start (default): sign in with zwift-auth.py and start ZwiftApp.exe directly, the way

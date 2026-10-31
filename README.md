@@ -20,7 +20,7 @@ The result: the unmodified Windows app runs with Bluetooth and ANT+ working dire
 
 ## Quick start for Linux beginners
 
-You will copy and paste a few commands into a **terminal** (a window where you type commands). Everything installs into your own home folder; your password is asked for only once, for two optional system settings.
+You will copy and paste a few commands into a **terminal** (a window where you type commands). Everything installs into your own home folder; your password is asked for only once, for a few optional system settings.
 
 **What you need:** a 64-bit PC running Linux, an internet connection (about 6 GB of downloads), a Bluetooth adapter and/or an ANT+ USB stick, and your Zwift login.
 
@@ -42,7 +42,7 @@ bash install.sh
 
 The installer explains each step as it goes. Things to expect:
 - It downloads GE-Proton (about 560 MB). Downloads are checked against official checksums.
-- It asks for your password once (`sudo`) to allow ANT+ USB sticks and to switch on Bluetooth. Typing your password shows nothing on screen; that's normal.
+- It asks for your password once (`sudo`) to allow ANT+ USB sticks, to keep your Bluetooth adapter out of USB power saving, and to switch on Bluetooth. Typing your password shows nothing on screen; that's normal.
 - The first setup installs Windows components (.NET, fonts) and **takes several minutes**. If a box says `rundll32.exe - This application could not be started`, click **No**.
 - It installs Zwift's launcher files, then **downloads the game directly from Zwift** (about 5 GB the first time). Nothing to click; just wait.
 - When you see **"Zwift is ready."** you're done. If it lists commands under "run these yourself", copy and paste them into the terminal.
@@ -69,9 +69,9 @@ The installer:
 2. downloads **GE-Proton11-8** into `~/.local/share/zwift-linux` (checksum-verified, about 560 MB);
 3. adds the ANT+ bridge to that GE-Proton copy;
 4. asks for `sudo` once to add udev rules for ANT+ sticks (`0fcf:1008`, `0fcf:1009`) and to keep USB Bluetooth adapters out of power saving, and to start the Bluetooth service (`--no-sudo` prints the commands instead);
-5. creates the Wine prefix `~/Games/zwift`. The first run installs .NET 4.8, fonts and WebView2 automatically, which takes several minutes;
+5. creates the Wine prefix `~/Games/zwift` and sets Windows DPI from your desktop scale. The first run installs .NET 4.8, fonts and WebView2 automatically, which takes several minutes;
 6. installs Zwift's launcher files with ZwiftSetup, then downloads or updates the game directly from Zwift's update server (over HTTPS, about 5 GB the first time, every file checked against Zwift's manifest). `zwift` repeats this update check before each start, and skips it when offline;
-7. installs the `zwift` command and an app menu entry, and sets Windows DPI from your desktop scale.
+7. installs the game starter (`LinuxZwiftLauncher.exe`, prebuilt and checked against `zwift-start/SHA256SUMS`, or compiled with `--build-starter`), the `zwift` command and an app menu entry.
 
 Re-running `./install.sh` updates an existing install and skips finished steps.
 
@@ -93,9 +93,10 @@ Options: `--check`, `--dpi N` (96 = 100%, 144 = 150%, 192 = 200%), `--prefix DIR
 
 | Command | What it does |
 | --- | --- |
-| `zwift` | Start Zwift without the Windows launcher: signs in with Zwift's own sign-in page (first start, or when the sign-in expires) and starts the game directly. Before starting it checks that Bluetooth scanning works (resetting a stuck adapter); when the game exits, the tray launcher is shut down too. |
+| `zwift` | Start Zwift without the Windows launcher: signs in with Zwift's own sign-in page (first start, or when the sign-in expires) and starts the game directly. Before starting it checks that Bluetooth scanning works (resetting a stuck adapter); when the game exits, the Wine prefix is shut down too (with `--launcher`, that includes the launcher's tray icon). |
 | `zwift --launcher` | Start Zwift through the Windows launcher instead (also used when the game files aren't installed yet) |
 | `zwift login` / `zwift logout` / `zwift status` | Sign in again (e.g. switch account), sign out, or show whether you are signed in |
+| `zwift --help` | List these commands |
 | `zwift --display x11` / `--display wayland` | Force Wine's X11 (XWayland) or Wayland driver; by default it's chosen from your session and GPU ([COMPATIBILITY.md](COMPATIBILITY.md)) |
 | `zwift doctor` | Check the install, Bluetooth adapter, ANT+ stick (live test through Wine) and what the last Zwift session paired |
 | `zwift kill` | Force-stop everything in the Zwift prefix |
@@ -158,7 +159,7 @@ server, which `share/zwift-auth.py` repeats with the same public endpoints and c
 
 The installer uses the prebuilt `LinuxZwiftLauncher.exe` (checksum in `zwift-start/SHA256SUMS`), or builds it from `zwift-start.c` with `./install.sh --build-starter` if you'd rather compile it yourself; see [zwift-start/README.md](zwift-start/README.md).
 
-The refresh token is kept in `~/.local/share/zwift-linux/auth.json` (mode 600) so later starts skip the
+The token response, including the refresh token, is kept in `~/.local/share/zwift-linux/auth.json` (mode 600) so later starts skip the
 sign-in page; `zwift logout` ends the session at Zwift and deletes it. Your password is only ever typed
 into Zwift's own page. `zwift-auth.py` always verifies Zwift's TLS certificates and has no proxy option. `tools/record-login.py` is a
 developer-only mitmproxy addon (not installed) that logs the real launcher's traffic with passwords, codes
