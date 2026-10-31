@@ -114,7 +114,7 @@ Verified on CachyOS (kernel 7.2.9, AMD Radeon 890M), Zwift 1.123.0, 13 Oct 2026:
 | ANT+ USB stick (Dynastream ANTUSB-m) | Zwift lists ANT+ FE-C and power devices with live power |
 | Frame rate | 55-93 FPS |
 
-Verified on CachyOS (GNOME 51 Wayland, NVIDIA RTX 4090, driver 615.78), Zwift 1.124.0, 30 Oct 2026, with zwift-linux 1.1.0 (no Windows launcher, Wine's Wayland driver): sign-in, menus, a 10-minute ride and spectating at 58-60 FPS (vsync), clean exit. Also verified 30 Oct 2026 on a freshly installed CachyOS PC (GNOME, AMD Renoir integrated GPU, XWayland), Zwift 1.124.0: clean install, all sensors found, and a 41-minute ride at a steady 30 FPS (capped by its 30 Hz display) with a Garmin fenix 7 heart rate over Bluetooth once USB power saving was turned off for the Bluetooth adapter (the installer now does this).
+Verified on CachyOS (GNOME 51 Wayland, NVIDIA RTX 4090, driver 615.78), Zwift 1.124.0, 30 Oct 2026, with zwift-linux 1.1.0 (no Windows launcher, Wine's Wayland driver): sign-in, menus, a 10-minute ride and spectating at 58-60 FPS (vsync), clean exit. Also verified 30 Oct 2026 on a freshly installed CachyOS PC (GNOME, AMD Renoir integrated GPU, XWayland), Zwift 1.124.0: clean install, all sensors found, and a 41-minute ride at a steady 30 FPS (capped by its 4K 30 Hz display) with a Garmin fenix 7 heart rate over Bluetooth once USB power saving was turned off for the Bluetooth adapter (the installer now does this).
 
 The full desktop × GPU × distro matrix, with tested and untested setups kept apart, is in [COMPATIBILITY.md](COMPATIBILITY.md). Reports welcome: include `zwift doctor` output.
 

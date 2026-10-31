@@ -98,7 +98,7 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
   falls back to the other one if OpenGL fails to start. The tested and untested combinations are
   listed in [COMPATIBILITY.md](../COMPATIBILITY.md). AMD on the current build was verified on
   30 Oct 2026 on a Renoir integrated GPU (fresh install, XWayland, 41-minute ride at a steady 30 FPS,
-  the display's 30 Hz refresh rate); KDE, wlroots desktops, Intel GPUs, NVIDIA
+  the 4K display's 30 Hz refresh rate); KDE, wlroots desktops, Intel GPUs, NVIDIA
   older than 595 and X11 sessions are still untested.
 - **Window that couldn't be resized:** without `WINWIDTH`/`WINHEIGHT` in `prefs.xml`, Zwift opened its
   window exactly screen-sized, so the frame's edges sat off screen and it couldn't be resized (one
