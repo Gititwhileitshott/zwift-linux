@@ -9,7 +9,7 @@
 #                                             never updates ("steam_app_0 is not responding"); winewayland works
 #   Wayland + NVIDIA < 595           x11      winewayland is reported to freeze on NVIDIA 570 and older
 #                                             (Proton-EM requires 595+); update the driver if XWayland freezes too
-#   Wayland + Mesa (AMD/Intel/NVK)   x11      verified on AMD 890M + GNOME (55-93 FPS); winewayland is the fallback
+#   Wayland + Mesa (AMD/Intel/NVK)   x11      verified on AMD 890M and Renoir + GNOME; winewayland is the fallback
 #
 # Overrides, highest first: zwift --display x11|wayland, ZWIFT_DISPLAY=x11|wayland (environment or zwift.conf),
 # then $DATA/display.auto, which zwift writes when the chosen driver failed to start OpenGL last time.

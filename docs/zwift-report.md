@@ -32,7 +32,7 @@ Prepared for Zwift, Inc. by the zwift-linux project. Last updated 31 Oct 2026.
 | Runner | GE-Proton 11-8 via umu-launcher 1.4.4 (`GAMEID=umu-zwift`) |
 | Zwift | Game 1.123.0 (build 167050); launcher 1.1.18 (working) and 1.2.0 (failing) |
 | Second PC | NVIDIA RTX 4090, ZwiftApp 1.124.0 (native login test) |
-| Third PC | AMD Radeon 890M, GNOME, fresh CachyOS install, XWayland, Zwift 1.124.0, fenix 7 BLE HR |
+| Third PC | AMD Renoir integrated GPU (Mesa 26.2 radeonsi), GNOME, fresh CachyOS install, XWayland, Zwift 1.124.0, fenix 7 BLE HR |
 | Distros (installer checks only) | Arch, Fedora 44, Ubuntu 22.04/24.04/26.04, Debian 13, openSUSE Tumbleweed (containers) |
 | Sensors | Wahoo KICKR BIKE (BLE FTMS), Garmin fenix 7 (BLE HR), Dynastream ANTUSB-m (ANT+) |
 
@@ -97,8 +97,15 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
   for NVIDIA 595+ on Wayland, XWayland for Mesa GPUs and older NVIDIA, X11 on X11 sessions) and
   falls back to the other one if OpenGL fails to start. The tested and untested combinations are
   listed in [COMPATIBILITY.md](../COMPATIBILITY.md). AMD on the current build was verified on
-  30 Oct 2026 (fresh install, XWayland, 41-minute ride); KDE, wlroots desktops, Intel GPUs, NVIDIA
+  30 Oct 2026 on a Renoir integrated GPU (fresh install, XWayland, 41-minute ride at a steady 30 FPS,
+  the display's 30 Hz refresh rate); KDE, wlroots desktops, Intel GPUs, NVIDIA
   older than 595 and X11 sessions are still untested.
+- **Window that couldn't be resized:** without `WINWIDTH`/`WINHEIGHT` in `prefs.xml`, Zwift opened its
+  window exactly screen-sized, so the frame's edges sat off screen and it couldn't be resized (one
+  run logged `GLFW ERROR 65540` and a 0x0 window). zwift-linux now writes 75% of the desktop on first
+  start; confirmed on the Renoir PC (window 1728x972, resizable).
+- **Zwift-side suggestion:** when no saved window size exists, start windowed mode smaller than the
+  screen instead of exactly screen-sized.
 - **Known limitation:** with Wine's Wayland driver, the game drops to about 1 FPS while another
   window fully covers it (the compositor stops sending frame callbacks) and recovers when visible.
 - **Ride-highlight recording:** clips can't be saved because Proton's media back-end (`winedmo`)
@@ -121,7 +128,7 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
 - **Pitfall found:** after a session ends mid-connection, BlueZ can refuse `StartDiscovery` with
   `org.bluez.Error.InProgress`. Wine logs it and Zwift never retries, so the pairing screen stays
   empty. zwift-linux test-scans before launch and power-cycles the adapter when it's stuck.
-- **Dropped links (30 Oct 2026, AMD PC with a MediaTek 0e8d:0608 adapter):** the fenix 7 HR link
+- **Dropped links (30 Oct 2026, AMD Renoir PC with a MediaTek 0e8d:0608 adapter):** the fenix 7 HR link
   dropped twice mid-ride, with "ACL packet for unknown connection handle" in the kernel log. USB
   autosuspend on the adapter was the trigger. With autosuspend off (zwift-linux adds a udev rule),
   it stayed connected for a full 41-minute ride.
@@ -168,8 +175,9 @@ Collected from the suggestions above, smallest change first:
 3. Support starting the game with a token from a system browser login (finding 2).
 4. Request TLS 1.2+ explicitly in the launcher (finding 6).
 5. Stop retrying the video encoder after repeated failures (finding 3).
-6. Reconnect a dropped BLE sensor when it advertises again (finding 4).
-7. **(pending)** anything further from the launcher 1.2.0 shim work (finding 1).
+6. Open windowed mode smaller than the screen when there's no saved size (finding 3).
+7. Reconnect a dropped BLE sensor when it advertises again (finding 4).
+8. **(pending)** anything further from the launcher 1.2.0 shim work (finding 1).
 
 ## How to reproduce
 
