@@ -23,6 +23,35 @@ else fail "Zwift not installed in $PFX"; fi
 dpi="$(grep -A40 '^\[Control Panel\\\\Desktop\]' "$PFX/user.reg" 2>/dev/null | grep -m1 '"LogPixels"' | sed 's/.*dword://')"
 [ -n "$dpi" ] && pass "Windows DPI $((16#$dpi)) (re-run install.sh --dpi N to change)"
 
+echo "Sign-in (zwift-auth.py)"
+webkit_hint() { # distro packages for PyGObject + GTK 4 + WebKitGTK 6.0
+  local id like; id="$( (. /etc/os-release; echo "${ID:-}") 2>/dev/null)"; like="$( (. /etc/os-release; echo "${ID_LIKE:-}") 2>/dev/null)"
+  case " $id $like " in
+    *" arch "*) echo "sudo pacman -S --needed python-gobject gtk4 webkitgtk-6.0" ;;
+    *" fedora "*|*" rhel "*) echo "sudo dnf install python3-gobject gtk4 webkitgtk6.0" ;;
+    *" debian "*|*" ubuntu "*) echo "sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-webkit-6.0" ;;
+    *" opensuse"*|*" suse "*) echo "sudo zypper install python3-gobject typelib-1_0-Gtk-4_0 typelib-1_0-WebKit-6_0" ;;
+    *) echo "install PyGObject with GTK 4 and WebKitGTK 6.0 from your package manager" ;;
+  esac
+}
+if ! command -v python3 >/dev/null; then fail "python3 not found - needed to sign in to Zwift"
+elif python3 -c 'import gi; gi.require_version("Gtk","4.0"); gi.require_version("WebKit","6.0"); from gi.repository import Gtk, WebKit' 2>/dev/null; then
+  pass "sign-in window available (GTK 4 + WebKitGTK 6.0)"
+else
+  note "no GTK 4 / WebKitGTK 6.0 for Python: sign-in opens in your web browser instead. For the built-in window: $(webkit_hint)"
+fi
+[ -f "$DATA/zwift-auth.py" ] && python3 "$DATA/zwift-auth.py" status 2>&1 | sed 's/^/          /'
+
+echo "Display"
+# shellcheck source=/dev/null
+. "$DATA/zwift-display.sh"
+zl_pick_display
+gl="$(command -v glxinfo >/dev/null && glxinfo -B 2>/dev/null | sed -n 's/^OpenGL renderer string: //p')"
+pass "$(zl_session) session, GPU driver $(zl_gpu_driver)${gl:+ ($gl)}$( [ -n "$(zl_nvidia_major)" ] && echo ", NVIDIA $(cat /sys/module/nvidia/version)")"
+pass "Zwift will use Wine's $ZL_DISPLAY driver: $ZL_DISPLAY_WHY"
+[ -s "$DATA/display.auto" ] && note "automatic fallback active ($DATA/display.auto); delete it to retry the default"
+note "if the Zwift window freezes or stays black, try: zwift --display $( [ "$ZL_DISPLAY" = wayland ] && echo x11 || echo wayland)"
+
 echo "Bluetooth LE"
 if [ "$DO_BLE" != 1 ]; then note "disabled at install (--no-ble)"
 else
@@ -40,6 +69,13 @@ else
           pass "Bluetooth scanning works"
         fi
       fi
+    fi
+    # USB autosuspend on the adapter can drop BLE links (supervision timeout) mid-ride
+    bt="$(readlink -f /sys/class/bluetooth/hci0/device/.. 2>/dev/null)"
+    if [ -n "$bt" ] && [ -f "$bt/power/control" ]; then
+      if [ "$(cat "$bt/power/control")" = auto ]; then
+        note "USB power saving (autosuspend) is on for the Bluetooth adapter; sensors may drop mid-ride - re-run install.sh to turn it off"
+      else pass "USB power saving is off for the Bluetooth adapter"; fi
     fi
     if ! pgrep -f 'ZwiftApp\.exe' >/dev/null; then
       for mac in $(grep -oiE '_ORG_BLUEZ_HCI[0-9]+&[0-9A-F]{12}' "$PFX/system.reg" 2>/dev/null | grep -oiE '[0-9A-F]{12}$' | tr 'a-f' 'A-F' | sort -u | sed 's/../&:/g; s/:$//'); do

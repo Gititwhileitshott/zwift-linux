@@ -14,7 +14,7 @@
 # Usage: ./install.sh [options]      (run ./install.sh --help)
 set -euo pipefail
 
-ZL_VERSION="1.0.2"
+ZL_VERSION="1.1.0"
 GE_VER="GE-Proton11-8"
 UMU_VER="1.4.4"
 UMU_SHA256="eb590691841f7fad3fc3ad8fd5db4ccb87849fe7948e62b28ece7a4ee48cc851"
@@ -27,7 +27,7 @@ APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 PFX="${ZWIFT_PREFIX:-$HOME/Games/zwift}"
 SETUP_EXE=""
 DPI="${ZWIFT_DPI:-}"
-USE_SUDO=1 DO_BLE=1 DO_ANT=1 ASSUME_YES=0
+USE_SUDO=1 DO_BLE=1 DO_ANT=1 ASSUME_YES=0 CHECK_ONLY=0 BUILD_STARTER="${ZWIFT_BUILD_STARTER:-0}"
 
 usage() {
   cat <<EOF
@@ -43,7 +43,10 @@ Options:
   --no-sudo        Skip the udev rule and Bluetooth service steps (prints them instead)
   --no-ble         Don't enable Bluetooth LE (use Zwift Companion instead)
   --no-ant         Don't install the ANT+ USB bridge
+  --build-starter  Build LinuxZwiftLauncher.exe from zwift-start/zwift-start.c instead of using the
+                   prebuilt copy (needs the MinGW-w64 cross compiler, x86_64-w64-mingw32-gcc)
   -y, --yes        Don't ask questions (the game download is waited for automatically)
+  --check          Only check this PC (distro, Python, sign-in window, Bluetooth, sandbox, display/GPU) and exit
   -h, --help       This help
 
 Re-running the installer updates an existing install and skips finished steps.
@@ -58,7 +61,9 @@ while [ $# -gt 0 ]; do
     --no-sudo) USE_SUDO=0; shift ;;
     --no-ble) DO_BLE=0; shift ;;
     --no-ant) DO_ANT=0; shift ;;
+    --build-starter) BUILD_STARTER=1; shift ;;
     -y|--yes) ASSUME_YES=1; shift ;;
+    --check) CHECK_ONLY=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; usage; exit 1 ;;
   esac
@@ -75,10 +80,10 @@ interactive() { [ "$ASSUME_YES" = 0 ] && [ -t 0 ]; }
 step "Checking your system"
 [ "$(uname -m)" = x86_64 ] || die "Zwift for Windows needs an x86_64 PC (found $(uname -m))."
 [ "$(id -u)" != 0 ] || die "Run this as your normal user, not root (sudo is requested only where needed)."
-for t in curl tar sha256sum sha512sum awk sed grep; do
+for t in curl tar sha256sum sha512sum awk sed grep python3; do
   command -v "$t" >/dev/null || die "Missing required tool: $t"
 done
-if pgrep -f 'Zwift(App|Launcher)\.exe' >/dev/null 2>&1; then
+if [ "$CHECK_ONLY" = 0 ] && pgrep -f 'Zwift(App|Launcher)\.exe' >/dev/null 2>&1; then
   die "Zwift is running. Quit it (and its tray icon), then run the installer again."
 fi
 DISTRO_ID="unknown" DISTRO_LIKE="" DISTRO_NAME="Linux"
@@ -99,6 +104,49 @@ pkg_hint() { # pkg_hint <generic package name> -> install command for this distr
     *) echo "install the '$1' package with your package manager" ;;
   esac
 }
+
+# Ubuntu 23.10+ (AppArmor) lets unprivileged programs create user namespaces only with a profile that
+# allows it. umu's Steam Linux Runtime container (pressure-vessel / bwrap) needs one, like Steam's own.
+APPARMOR_FILE=/etc/apparmor.d/zwift-linux-umu
+APPARMOR_PROFILE='abi <abi/4.0>,
+include <tunables/global>
+profile zwift-linux-umu @{HOME}/.local/share/umu/**/srt-bwrap flags=(unconfined) {
+  userns,
+  include if exists <local/zwift-linux-umu>
+}'
+userns_restricted() { [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ]; }
+
+if [ "$CHECK_ONLY" = 1 ]; then
+  step "Prerequisites"
+  if command -v umu-run >/dev/null; then ok "umu-launcher from your distro: $(command -v umu-run)"
+  elif python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null; then ok "$(python3 -V) (umu-launcher zipapp will be downloaded)"
+  else warn "no umu-launcher and no Python 3.10+: $(pkg_hint python3)"; fi
+  if python3 -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("WebKit", "6.0"); from gi.repository import Gtk, WebKit' 2>/dev/null; then
+    ok "WebKitGTK 6: Zwift sign-in opens in its own window"
+  else
+    note_pkg="python3-gobject + webkitgtk-6.0"
+    case " $DISTRO_ID $DISTRO_LIKE " in
+      *" debian "*|*" ubuntu "*) note_pkg="python3-gi gir1.2-webkit-6.0" ;;
+      *" fedora "*|*" rhel "*) note_pkg="python3-gobject webkitgtk6.0" ;;
+      *" arch "*|*" cachyos "*|*" manjaro "*|*" endeavouros "*) note_pkg="python-gobject webkitgtk-6.0" ;;
+      *" opensuse"*|*" suse "*) note_pkg="python3-gobject typelib-1_0-WebKit-6_0" ;;
+    esac
+    warn "no WebKitGTK 6 for Python: sign-in will use your web browser instead (optional: $(pkg_hint "$note_pkg"))"
+  fi
+  if command -v bluetoothctl >/dev/null; then ok "BlueZ $(bluetoothctl --version 2>/dev/null | awk '{print $2}')"
+  else warn "BlueZ not found, needed for Bluetooth sensors: $(pkg_hint bluez)"; fi
+  if userns_restricted; then
+    if [ -f "$APPARMOR_FILE" ]; then ok "AppArmor user-namespace profile for umu present"
+    else warn "AppArmor restricts user namespaces; install.sh will add $APPARMOR_FILE (sudo) so umu's container can start"; fi
+  elif command -v unshare >/dev/null && ! unshare -Ur true 2>/dev/null; then
+    warn "unprivileged user namespaces are disabled; umu's container (and Steam's) can't start"
+  else ok "user namespaces available (umu container)"; fi
+  # shellcheck source=/dev/null
+  DATA="$DATA" . "$HERE/share/zwift-display.sh"
+  zl_pick_display
+  ok "$(zl_session) session, GPU driver $(zl_gpu_driver)$( [ -n "$(zl_nvidia_major)" ] && echo " $(cat /sys/module/nvidia/version)"): Wine $ZL_DISPLAY driver ($ZL_DISPLAY_WHY)"
+  exit 0
+fi
 
 # ---------------------------------------------------------------------------------------------
 step "1/7 umu-launcher (runs Proton outside Steam)"
@@ -172,6 +220,39 @@ if [ "$DO_ANT" = 1 ] && [ "$(cat "$UDEV_FILE" 2>/dev/null)" != "$UDEV_RULE" ]; t
   fi
 elif [ "$DO_ANT" = 1 ]; then ok "udev rule already present"; fi
 
+if userns_restricted && [ "$(cat "$APPARMOR_FILE" 2>/dev/null)" != "$APPARMOR_PROFILE" ]; then
+  if [ "$USE_SUDO" = 1 ] && command -v sudo >/dev/null; then
+    echo "  Adding $APPARMOR_FILE so umu's container may use user namespaces (sudo):"
+    if printf '%s\n' "$APPARMOR_PROFILE" | sudo tee "$APPARMOR_FILE" >/dev/null && sudo apparmor_parser -r "$APPARMOR_FILE"; then
+      ok "AppArmor profile installed"
+    else warn "could not load $APPARMOR_FILE; umu may fail with 'bwrap: setting up uid map: Permission denied'"; fi
+  else
+    manual+=("printf '%s\\n' '$APPARMOR_PROFILE' | sudo tee $APPARMOR_FILE && sudo apparmor_parser -r $APPARMOR_FILE")
+  fi
+fi
+
+# USB autosuspend on Bluetooth adapters (btusb enable_autosuspend=Y on most distros) can make the controller
+# drop BLE links mid-ride ("ACL packet for unknown connection handle" in dmesg); keep USB adapters awake.
+BT_RULE='ACTION=="bind", SUBSYSTEM=="usb", DRIVER=="btusb", RUN+="/bin/sh -c '"'"'echo on > /sys%p/../power/control'"'"'"'
+BT_RULE_FILE=/etc/udev/rules.d/52-zwift-bluetooth-awake.rules
+if [ "$DO_BLE" = 1 ] && [ "$(cat "$BT_RULE_FILE" 2>/dev/null)" != "$BT_RULE" ]; then
+  if [ "$USE_SUDO" = 1 ] && command -v sudo >/dev/null; then
+    echo "  Adding $BT_RULE_FILE to turn off USB power saving for Bluetooth adapters (sudo):"
+    if echo "$BT_RULE" | sudo tee "$BT_RULE_FILE" >/dev/null; then
+      sudo udevadm control --reload-rules || true
+      for d in /sys/class/bluetooth/hci*/device/..; do   # apply now, without replugging
+        [ -f "$d/power/control" ] && echo on | sudo tee "$d/power/control" >/dev/null
+      done
+      ok "Bluetooth adapter kept awake"
+    else warn "could not write $BT_RULE_FILE"; fi
+  else
+    manual+=("sudo tee $BT_RULE_FILE <<'RULE'
+$BT_RULE
+RULE
+sudo udevadm control --reload-rules")
+  fi
+fi
+
 if [ "$DO_BLE" = 1 ]; then
   if ! command -v bluetoothctl >/dev/null && ! systemctl list-unit-files bluetooth.service >/dev/null 2>&1; then
     warn "BlueZ (the Linux Bluetooth stack) was not found: $(pkg_hint bluez)"
@@ -235,13 +316,22 @@ if [[ "$DPI" =~ ^[0-9]+$ ]] && [ "$DPI" -ge 96 ] && [ "$DPI" -le 480 ]; then
 else
   echo "  DPI not detected; if the launcher looks tiny, re-run with --dpi 144 (150%) or --dpi 192 (200%)"
 fi
+# Without these, .NET offers only SSL3/TLS 1.0 and Zwift's servers refuse the launcher's HTTPS calls
+# ("Could not create SSL/TLS secure channel"). Set in both the 64-bit and 32-bit registry views.
+tls_ok=1
+for k in 'HKLM\SOFTWARE\Microsoft\.NETFramework\v4.0.30319' 'HKLM\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319'; do
+  for v in SchUseStrongCrypto SystemDefaultTlsVersions; do
+    "$UMU" reg add "$k" /v "$v" /t REG_DWORD /d 1 /f >/dev/null 2>&1 || tls_ok=0
+  done
+done
+[ "$tls_ok" = 1 ] && ok ".NET allowed to use TLS 1.2+" || warn "could not set the .NET TLS registry keys"
 [ "$DO_ANT" = 1 ] && install -Dm 644 "$DATA/libusb0-placeholder.dll" "$PFX/drive_c/windows/system32/libusb0.dll"
 
 # ---------------------------------------------------------------------------------------------
 step "6/7 Zwift"
 ZDIR="$PFX/drive_c/Program Files (x86)/Zwift"
-if [ -f "$ZDIR/ZwiftApp.exe" ]; then
-  ok "already installed (Zwift updates itself from the launcher)"
+if [ -f "$ZDIR/ZwiftLauncher.exe" ]; then
+  ok "Zwift launcher already installed"
 else
   if [ -z "$SETUP_EXE" ]; then
     for c in "$HERE/ZwiftSetup.exe" "$HOME/Downloads/ZwiftSetup.exe"; do [ -f "$c" ] && SETUP_EXE="$c" && break; done
@@ -251,25 +341,24 @@ else
     curl -fL --progress-bar -o "$SETUP_EXE" "$ZWIFT_SETUP_URL" \
       || die "could not download ZwiftSetup.exe - download it from zwift.com and pass --setup FILE"
   fi
-  echo "  Installing from $SETUP_EXE"
-  echo "  The Zwift launcher will open and download the game (about 2 GB)."
+  echo "  Installing the Zwift launcher from $SETUP_EXE"
   ( "$UMU" "$SETUP_EXE" /SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL >"$DATA/install-zwift.log" 2>&1 ) &
   UMU_PID=$!
-  if interactive; then
-    read -r -p "  >>> When the download has finished, close the Zwift launcher and press Enter... " _ </dev/tty
-  else
-    echo "  waiting for the game download to finish..."
-    for _ in $(seq 1 720); do
-      [ -f "$ZDIR/ZwiftApp.exe" ] && { sleep 60; break; }
-      kill -0 "$UMU_PID" 2>/dev/null || break
-      sleep 5
-    done
-  fi
+  # The installer starts the WebView2 launcher when it's done; zwift doesn't need it, so stop the prefix
+  # once the launcher files are in place and fetch the game directly instead.
+  for _ in $(seq 1 360); do
+    [ -f "$ZDIR/ZwiftLauncher.exe" ] && { sleep 15; break; }
+    kill -0 "$UMU_PID" 2>/dev/null || break
+    sleep 5
+  done
   "$GE/files/bin/wineserver" -k 2>/dev/null || true
   wait "$UMU_PID" 2>/dev/null || true
   [ -f "$ZDIR/ZwiftLauncher.exe" ] || die "Zwift did not install - see $DATA/install-zwift.log"
-  [ -f "$ZDIR/ZwiftApp.exe" ] && ok "Zwift installed" || warn "game files not downloaded yet; the first start will download them"
+  ok "Zwift launcher installed"
 fi
+echo "  Downloading or updating the game from Zwift's servers (about 5 GB the first time)"
+python3 "$HERE/share/zwift-fetch-game.py" "$ZDIR" --if-outdated \
+  && ok "Zwift game files up to date" || die "game download failed - re-run install.sh to resume"
 # Zwift's installer copies the Windows libusb0.dll (needs a kernel driver Wine can't load); keep the bridge.
 [ "$DO_ANT" = 1 ] && install -Dm 644 "$DATA/libusb0-placeholder.dll" "$PFX/drive_c/windows/system32/libusb0.dll"
 
@@ -282,6 +371,30 @@ rm -rf "$DATA/ble-patch"
 [ -f "$BIN/zwift" ] && [ ! -L "$BIN/zwift" ] && grep -qs 'generated by zwift-setup.sh' "$BIN/zwift" && rm -f "$BIN/zwift"
 install -m 755 "$HERE/share/zwift-launcher.sh" "$DATA/zwift-launcher.sh"
 install -m 755 "$HERE/share/zwift-doctor.sh" "$DATA/zwift-doctor.sh"
+install -m 644 "$HERE/share/zwift-display.sh" "$DATA/zwift-display.sh"
+install -m 755 "$HERE/share/zwift-fetch-game.py" "$DATA/zwift-fetch-game.py"
+install -m 755 "$HERE/share/zwift-auth.py" "$DATA/zwift-auth.py"
+# The game starter: prebuilt by default, or built here from its source with --build-starter.
+if [ "$BUILD_STARTER" = 1 ]; then
+  if ! command -v x86_64-w64-mingw32-gcc >/dev/null; then
+    case " $DISTRO_ID $DISTRO_LIKE " in
+      *" arch "*|*" cachyos "*|*" manjaro "*|*" endeavouros "*) mingw_pkg="mingw-w64-gcc" ;;
+      *" fedora "*|*" rhel "*|*" nobara "*|*" bazzite "*) mingw_pkg="mingw64-gcc" ;;
+      *" debian "*|*" ubuntu "*) mingw_pkg="gcc-mingw-w64-x86-64" ;;
+      *" opensuse"*|*" suse "*) mingw_pkg="mingw64-cross-gcc" ;;
+      *) mingw_pkg="mingw-w64 (x86_64 cross compiler)" ;;
+    esac
+    die "--build-starter needs x86_64-w64-mingw32-gcc: $(pkg_hint "$mingw_pkg")"
+  fi
+  x86_64-w64-mingw32-gcc -municode -O2 -s -Wl,--subsystem,windows \
+    -o "$DATA/LinuxZwiftLauncher.exe" "$HERE/zwift-start/zwift-start.c" || die "building LinuxZwiftLauncher.exe failed"
+  ok "LinuxZwiftLauncher.exe built from zwift-start/zwift-start.c"
+else
+  (cd "$HERE/zwift-start" && sha256sum -c --quiet SHA256SUMS) || die "zwift-start/LinuxZwiftLauncher.exe doesn't match SHA256SUMS (use --build-starter to build it from source)"
+  install -m 644 "$HERE/zwift-start/LinuxZwiftLauncher.exe" "$DATA/LinuxZwiftLauncher.exe"
+  ok "LinuxZwiftLauncher.exe (prebuilt, sha256 $(sha256sum "$DATA/LinuxZwiftLauncher.exe" | cut -c1-16)...; --build-starter builds it from source)"
+fi
+rm -f "$DATA/zwift-start.exe"   # old name; ZwiftApp only accepts a parent whose path contains ZwiftLauncher.exe
 cat > "$DATA/zwift.conf" <<EOF
 # written by zwift-linux $ZL_VERSION installer - re-run install.sh to change
 ZL_VERSION="$ZL_VERSION"
