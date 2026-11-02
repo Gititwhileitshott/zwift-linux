@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: this workflow only reads the code. No secrets are used.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        # Pinned to a commit; Dependabot keeps it current.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: ShellCheck
+        run: |
+          shellcheck --version
+          shellcheck -S warning install.sh uninstall.sh share/*.sh ant-libusb/ant-test.sh
+
+      - name: Bash syntax
+        run: for f in install.sh uninstall.sh share/*.sh ant-libusb/ant-test.sh; do bash -n "$f"; done
+
+      - name: Python syntax
+        run: python3 -m py_compile share/*.py tools/*.py
+
+      - name: Prebuilt binaries match their checksums
+        run: |
+          (cd zwift-start && sha256sum -c SHA256SUMS)
+          (cd ant-libusb && sha256sum -c SHA256SUMS)
+
+      - name: Every committed binary is listed in a SHA256SUMS file
+        run: |
+          missing=0
+          while IFS= read -r f; do
+            dir="${f%%/*}"; rel="${f#*/}"
+            grep -qE "  \*?${rel//./\\.}$" "$dir/SHA256SUMS" 2>/dev/null || { echo "::error file=$f::$f is not listed in $dir/SHA256SUMS"; missing=1; }
+          done < <(git ls-files '*.exe' '*.dll' '*.so')
+          exit "$missing"
+
+  build-starter:
+    # Rebuilds LinuxZwiftLauncher.exe from source as a sanity check that the source compiles.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install mingw-w64
+        run: sudo apt-get update -q && sudo apt-get install -yq --no-install-recommends gcc-mingw-w64-x86-64
+      - name: Build
+        run: |
+          x86_64-w64-mingw32-gcc -municode -O2 -s -Wl,--subsystem,windows \
+            -o "$RUNNER_TEMP/LinuxZwiftLauncher.exe" zwift-start/zwift-start.c
+          sha256sum "$RUNNER_TEMP/LinuxZwiftLauncher.exe" zwift-start/LinuxZwiftLauncher.exe

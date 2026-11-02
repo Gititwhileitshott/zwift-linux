@@ -2,6 +2,12 @@
 
 ## 2 November 2026
 
+- **Repository hardening.** Added `SECURITY.md` (report problems privately through GitHub),
+  `CODEOWNERS`, Dependabot for GitHub Actions, and a CI workflow (read-only permissions, actions
+  pinned to commits) that runs ShellCheck and Python syntax checks, verifies every prebuilt
+  binary against its checksum and builds `LinuxZwiftLauncher.exe` from source. The ANT+ bridge
+  binaries now have `ant-libusb/SHA256SUMS`, which `install.sh` checks before installing them,
+  and `ant-libusb/ant-test.sh` verifies the Wine build it downloads.
 - **Resolution no longer stuck at 1080p** ([#3](https://github.com/Gititwhileitshott/zwift-linux/pull/3)).
   Zwift caps the resolution by the graphics profile it picks for your GPU, and under Wine it often
   picks a low one (the medium profile, which stops at 1080p, on an AMD Renoir iGPU). GNOME's

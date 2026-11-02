@@ -1,0 +1,11 @@
+# Every change needs the owner's eye. If a ruleset on main requires code owner review,
+# this is the file it reads.
+*                     @Gititwhileitshott
+
+# Files that run with the user's privileges or ship as binaries
+/install.sh           @Gititwhileitshott
+/uninstall.sh         @Gititwhileitshott
+/share/               @Gititwhileitshott
+/zwift-start/         @Gititwhileitshott
+/ant-libusb/          @Gititwhileitshott
+/.github/             @Gititwhileitshott

@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Keeps the pinned GitHub Actions in .github/workflows up to date (opens a PR when a new version ships).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
