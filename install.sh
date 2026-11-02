@@ -204,6 +204,8 @@ if [ "$DO_ANT" = 1 ]; then
   for f in x86_64-windows/libusb0.dll x86_64-unix/libusb0.so placeholder/libusb0.dll; do
     [ -f "$HERE/ant-libusb/build/$f" ] || die "missing $HERE/ant-libusb/build/$f (incomplete package?)"
   done
+  (cd "$HERE/ant-libusb" && sha256sum -c --quiet SHA256SUMS) \
+    || die "ant-libusb binaries don't match ant-libusb/SHA256SUMS (rebuild them from ant-libusb/src, see ant-libusb/README.md)"
   install -m 644 "$HERE/ant-libusb/build/x86_64-windows/libusb0.dll" "$GE/files/lib/wine/x86_64-windows/libusb0.dll"
   install -m 755 "$HERE/ant-libusb/build/x86_64-unix/libusb0.so"     "$GE/files/lib/wine/x86_64-unix/libusb0.so"
   install -Dm 644 "$HERE/ant-libusb/build/placeholder/libusb0.dll"   "$DATA/libusb0-placeholder.dll"

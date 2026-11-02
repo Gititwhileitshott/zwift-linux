@@ -30,3 +30,9 @@ v0.2 changes (needed for Zwift's ANT_DLL.dll):
 
 Rebuild: cd src && make -f build.mk MINGW=x86_64-w64-mingw32- WINEBUILD=winebuild
 (needs a mingw-w64 cross compiler, Wine's winebuild for the placeholder, and a host C compiler).
+
+`install.sh` checks the prebuilt files against `SHA256SUMS` before installing them. After a
+rebuild, update it from this directory:
+
+    sha256sum build/x86_64-windows/libusb0.dll build/x86_64-unix/libusb0.so \
+      build/placeholder/libusb0.dll test/antprobe.exe > SHA256SUMS

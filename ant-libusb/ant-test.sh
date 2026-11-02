@@ -42,7 +42,11 @@ if [ -z "$WINE" ]; then
   WV=11.19; WD="$CACHE/wine-$WV-staging-amd64-wow64"
   if [ ! -x "$WD/bin/wine" ]; then
     echo "No system wine - downloading Wine $WV staging (Kron4ek build) to $CACHE"
-    mkdir -p "$CACHE" && curl -fL "https://github.com/Kron4ek/Wine-Builds/releases/download/$WV/wine-$WV-staging-amd64-wow64.tar.xz" | tar xJ -C "$CACHE" || { echo "FAIL: download"; exit 3; }
+    WSHA=c89f69cf22f6664e3791210fa3b40c6e9e6d2e27a9aaa466f5a26d9c56664a09   # sha256 of the 11.19 tarball
+    mkdir -p "$CACHE" && curl -fL -o "$CACHE/wine-$WV.tar.xz" "https://github.com/Kron4ek/Wine-Builds/releases/download/$WV/wine-$WV-staging-amd64-wow64.tar.xz" \
+      || { echo "FAIL: download"; exit 3; }
+    echo "$WSHA  $CACHE/wine-$WV.tar.xz" | sha256sum -c --quiet - || { rm -f "$CACHE/wine-$WV.tar.xz"; echo "FAIL: Wine download failed its checksum"; exit 3; }
+    tar xJf "$CACHE/wine-$WV.tar.xz" -C "$CACHE" && rm -f "$CACHE/wine-$WV.tar.xz" || { echo "FAIL: unpack"; exit 3; }
   fi
   WINE="$WD/bin/wine"
 fi

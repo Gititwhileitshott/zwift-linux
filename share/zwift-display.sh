@@ -1,4 +1,5 @@
 # zwift-display.sh - choose Wine's display driver for the game. Sourced by zwift-launcher.sh and zwift-doctor.sh.
+# shellcheck shell=bash disable=SC2034  # ZL_DISPLAY* are read by the scripts that source this file
 #
 # ZwiftApp.exe draws with OpenGL. Wine can show it through X11 (winex11; on a Wayland desktop that means
 # XWayland) or natively through Wayland (winewayland, OpenGL via EGL). Which one works depends on the
