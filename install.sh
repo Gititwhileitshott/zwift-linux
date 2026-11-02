@@ -309,8 +309,10 @@ ok "prefix ready"
 
 detect_dpi() {
   local s="" d=""
-  if command -v kscreen-doctor >/dev/null; then              # KDE Plasma
-    s="$(kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -o 'Scale: *[0-9.]*' | head -1 | awk '{print $2}')"
+  # KDE Plasma. Only in a Plasma session: kscreen-doctor installed without a running KScreen
+  # service waits forever for it (issue #2), so check the desktop and cap the call at 5 s.
+  if command -v kscreen-doctor >/dev/null && [[ ":${XDG_CURRENT_DESKTOP:-}:" == *:KDE:* || "${KDE_FULL_SESSION:-}" = true ]]; then
+    s="$(timeout 5 kscreen-doctor -o </dev/null 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -o 'Scale: *[0-9.]*' | head -1 | awk '{print $2}')"
   fi
   if [ -z "$s" ] && command -v xrdb >/dev/null && [ -n "${DISPLAY:-}" ]; then   # X11 / XWayland Xft.dpi
     d="$(xrdb -query 2>/dev/null | awk '/^Xft.dpi:/{print int($2); exit}')"
