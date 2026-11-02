@@ -71,13 +71,13 @@ The installer:
 4. asks for `sudo` once to add udev rules for ANT+ sticks (`0fcf:1008`, `0fcf:1009`) and to keep USB Bluetooth adapters out of power saving, and to start the Bluetooth service (`--no-sudo` prints the commands instead);
 5. creates the Wine prefix `~/Games/zwift` and sets Windows DPI from your desktop scale. The first run installs .NET 4.8, fonts and WebView2 automatically, which takes several minutes;
 6. installs Zwift's launcher files with ZwiftSetup, then downloads or updates the game directly from Zwift's update server (over HTTPS, about 5 GB the first time, every file checked against Zwift's manifest). `zwift` repeats this update check before each start, and skips it when offline;
-7. installs the game starter (`LinuxZwiftLauncher.exe`, prebuilt and checked against `zwift-start/SHA256SUMS`, or compiled with `--build-starter`), the `zwift` command and an app menu entry.
+7. sets Zwift's resolution to your screen's native resolution (Zwift's GPU detection under Wine often stops at 1080p; see below), then installs the game starter (`LinuxZwiftLauncher.exe`, prebuilt and checked against `zwift-start/SHA256SUMS`, or compiled with `--build-starter`), the `zwift` command and an app menu entry.
 
 Re-running `./install.sh` updates an existing install and skips finished steps.
 
 `./install.sh --check` only checks your PC (distro, Python, sign-in window, Bluetooth, sandbox, display/GPU) and exits. Which desktops, GPUs and distros have been tested is in [COMPATIBILITY.md](COMPATIBILITY.md).
 
-Options: `--check`, `--dpi N` (96 = 100%, 144 = 150%, 192 = 200%), `--prefix DIR`, `--setup ZwiftSetup.exe`, `--no-sudo`, `--no-ble`, `--no-ant`, `--build-starter`, `--yes`. Run `./install.sh --help`.
+Options: `--check`, `--dpi N` (96 = 100%, 144 = 150%, 192 = 200%), `--resolution WxH|native|auto`, `--prefix DIR`, `--setup ZwiftSetup.exe`, `--no-sudo`, `--no-ble`, `--no-ant`, `--build-starter`, `--yes`. Run `./install.sh --help`.
 
 ## Requirements
 
@@ -101,6 +101,8 @@ Options: `--check`, `--dpi N` (96 = 100%, 144 = 150%, 192 = 200%), `--prefix DIR
 | `zwift doctor` | Check the install, Bluetooth adapter, ANT+ stick (live test through Wine) and what the last Zwift session paired |
 | `zwift kill` | Force-stop everything in the Zwift prefix |
 | `zwift log` | Path of the last run's log |
+| `zwift reset-resolution` | Remove the resolution the installer set (backup of prefs.xml kept) so Zwift chooses its own again |
+| `zwift set-resolution [WxH]` | Render at WxH, e.g. `2560x1440`, or without WxH at your screen's native resolution |
 | `zwift reset-bluetooth` | Forget Wine's cached Bluetooth devices (backup kept); use when Bluetooth pairing never completes |
 | `./uninstall.sh [--purge]` | Remove everything; `--purge` also deletes the Zwift prefix (rides and profile are in your Zwift account) |
 
@@ -121,6 +123,7 @@ The full desktop × GPU × distro matrix, with tested and untested setups kept a
 
 ## Troubleshooting
 
+- **Resolution stops at 1080p:** Zwift picks a graphics profile from the GPU it detects, and only its top profile offers more than 1080p. Under Wine it often doesn't recognise the GPU (an AMD Renoir iGPU got the medium profile), so the installer writes your screen's native resolution into Zwift's prefs.xml (`USER_RESOLUTION_PREF`), which Zwift honours on any profile. It's written once, at the first start after install; a resolution you then pick in Zwift's settings sticks. `zwift reset-resolution` undoes it, `zwift set-resolution 2560x1440` picks another one. A 4K render is heavy for an integrated GPU; 2560x1440 is a good middle ground.
 - **Zwift window frozen, black, or "not responding":** try the other display driver: `zwift --display x11` or `zwift --display wayland`. `zwift doctor` shows which one is in use and why.
 - **Zwift window can't be resized or its edges are off screen:** `zwift` sets the windowed size to 75% of your desktop on first start (`WINWIDTH`/`WINHEIGHT` in Zwift's prefs.xml). If you changed it by hand, delete those two lines and start again.
 - **Bluetooth devices don't show up:** check `zwift doctor`. The adapter must be powered on (`bluetoothctl power on`) and the trainer must not be connected to another app or phone. Pairing can take 15-30 s under Wine.

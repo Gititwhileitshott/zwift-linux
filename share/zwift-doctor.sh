@@ -51,6 +51,19 @@ pass "$(zl_session) session, GPU driver $(zl_gpu_driver)${gl:+ ($gl)}$( [ -n "$(
 pass "Zwift will use Wine's $ZL_DISPLAY driver: $ZL_DISPLAY_WHY"
 [ -s "$DATA/display.auto" ] && note "automatic fallback active ($DATA/display.auto); delete it to retry the default"
 note "if the Zwift window freezes or stays black, try: zwift --display $( [ "$ZL_DISPLAY" = wayland ] && echo x11 || echo wayland)"
+if [ -f "$DATA/zwift-resolution.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$DATA/zwift-resolution.sh"
+  cur=""
+  while IFS= read -r p; do
+    cur="$(sed -n 's/.*<USER_RESOLUTION_PREF>\([^<]*\)<.*/\1/p' "$p" | head -1)"; [ -n "$cur" ] && break
+  done < <(zl_prefs_files)
+  if [ "${RESOLUTION:-auto}" = auto ]; then
+    pass "resolution chosen by Zwift${cur:+ (now $cur)}; to render at the screen resolution ($(zl_native_res)): zwift set-resolution"
+  else
+    pass "resolution $RESOLUTION set at install${cur:+ (prefs.xml now $cur)}; to let Zwift choose again: zwift reset-resolution"
+  fi
+fi
 
 echo "Bluetooth LE"
 if [ "$DO_BLE" != 1 ]; then note "disabled at install (--no-ble)"
