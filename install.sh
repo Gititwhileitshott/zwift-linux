@@ -28,6 +28,7 @@ APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 PFX="${ZWIFT_PREFIX:-$HOME/Games/zwift}"
 SETUP_EXE=""
 DPI="${ZWIFT_DPI:-}"
+RES="${ZWIFT_RESOLUTION:-}"
 USE_SUDO=1 DO_BLE=1 DO_ANT=1 ASSUME_YES=0 CHECK_ONLY=0 BUILD_STARTER="${ZWIFT_BUILD_STARTER:-0}"
 
 usage() {
@@ -41,6 +42,9 @@ Options:
   --setup FILE     Use this ZwiftSetup.exe instead of downloading it
   --dpi N          Windows DPI for the Zwift prefix (96 = 100%, 144 = 150%, 192 = 200%).
                    Default: detected from your desktop scale.
+  --resolution R   Resolution Zwift renders at: WxH (e.g. 2560x1440), native (your screen's own
+                   resolution) or auto (let Zwift choose; its GPU detection often stops at 1080p).
+                   Default: native on a new install, otherwise the previous setting.
   --no-sudo        Skip the steps that need sudo (udev rules, AppArmor profile, Bluetooth service)
                    and print the commands instead
   --no-ble         Don't enable Bluetooth LE (use Zwift Companion instead)
@@ -60,6 +64,7 @@ while [ $# -gt 0 ]; do
     --prefix) PFX="$2"; shift 2 ;;
     --setup) SETUP_EXE="$(realpath "$2")"; shift 2 ;;
     --dpi) DPI="$2"; shift 2 ;;
+    --resolution) RES="$2"; shift 2 ;;
     --no-sudo) USE_SUDO=0; shift ;;
     --no-ble) DO_BLE=0; shift ;;
     --no-ant) DO_ANT=0; shift ;;
@@ -76,6 +81,9 @@ step() { printf '\n%s==> %s%s\n' "$c_info" "$*" "$c_off"; }
 ok()   { printf '%s  ok%s %s\n' "$c_ok" "$c_off" "$*"; }
 warn() { printf '%s  warning:%s %s\n' "$c_warn" "$c_off" "$*" >&2; }
 die()  { printf '%sERROR:%s %s\n' "$c_err" "$c_off" "$*" >&2; exit 1; }
+# shellcheck source=/dev/null
+. "$HERE/share/zwift-resolution.sh"
+case "${RES:-}" in ""|native|auto) ;; *) zl_valid_res "$RES" || die "--resolution takes WxH (e.g. 2560x1440), native or auto" ;; esac
 interactive() { [ "$ASSUME_YES" = 0 ] && [ -t 0 ]; }
 
 # ---------------------------------------------------------------------------------------------
@@ -147,6 +155,9 @@ if [ "$CHECK_ONLY" = 1 ]; then
   DATA="$DATA" . "$HERE/share/zwift-display.sh"
   zl_pick_display
   ok "$(zl_session) session, GPU driver $(zl_gpu_driver)$( [ -n "$(zl_nvidia_major)" ] && echo " $(cat /sys/module/nvidia/version)"): Wine $ZL_DISPLAY driver ($ZL_DISPLAY_WHY)"
+  nr="$(zl_native_res)"
+  if [ -n "$nr" ]; then ok "screen resolution $nr: Zwift will render at it (--resolution to change)"
+  else warn "screen resolution not detected; Zwift will choose its own (or pass --resolution WxH)"; fi
   exit 0
 fi
 
@@ -374,6 +385,7 @@ rm -rf "$DATA/ble-patch"
 install -m 755 "$HERE/share/zwift-launcher.sh" "$DATA/zwift-launcher.sh"
 install -m 755 "$HERE/share/zwift-doctor.sh" "$DATA/zwift-doctor.sh"
 install -m 644 "$HERE/share/zwift-display.sh" "$DATA/zwift-display.sh"
+install -m 644 "$HERE/share/zwift-resolution.sh" "$DATA/zwift-resolution.sh"
 install -m 755 "$HERE/share/zwift-fetch-game.py" "$DATA/zwift-fetch-game.py"
 install -m 755 "$HERE/share/zwift-auth.py" "$DATA/zwift-auth.py"
 # The game starter: prebuilt by default, or built here from its source with --build-starter.
@@ -397,6 +409,15 @@ else
   ok "LinuxZwiftLauncher.exe (prebuilt, sha256 $(sha256sum "$DATA/LinuxZwiftLauncher.exe" | cut -c1-16)...; --build-starter builds it from source)"
 fi
 rm -f "$DATA/zwift-start.exe"   # old name; ZwiftApp only accepts a parent whose path contains ZwiftLauncher.exe
+# Zwift's GPU detection under Wine often stops at 1080p; render at the screen's own resolution instead.
+[ -n "$RES" ] || RES="$(sed -n 's/^RESOLUTION="\(.*\)"$/\1/p' "$DATA/zwift.conf" 2>/dev/null || true)"
+[ -n "$RES" ] || RES=native
+if [ "$RES" = native ]; then
+  RES="$(zl_native_res)"
+  [ -n "$RES" ] || { RES=auto; warn "screen resolution not detected; Zwift will choose its own (re-run with --resolution WxH)"; }
+fi
+if [ "$RES" = auto ]; then ok "Zwift chooses its own resolution"
+else ok "Zwift will render at $RES (change: zwift set-resolution WxH; undo: zwift reset-resolution)"; fi
 cat > "$DATA/zwift.conf" <<EOF
 # written by zwift-linux $ZL_VERSION installer - re-run install.sh to change
 ZL_VERSION="$ZL_VERSION"
@@ -406,6 +427,7 @@ PFX="$PFX"
 DO_BLE=$DO_BLE
 DO_ANT=$DO_ANT
 DPI="$DPI"
+RESOLUTION="$RES"
 EOF
 ln -sfn "$DATA/zwift-launcher.sh" "$BIN/zwift"
 icon="applications-games"

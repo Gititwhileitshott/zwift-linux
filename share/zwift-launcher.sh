@@ -10,6 +10,8 @@
 #   zwift kill       force-stop everything in the Zwift prefix
 #   zwift log        show the path of the last run's log
 #   zwift reset-bluetooth   forget Wine's cached Bluetooth devices (fixes "pairing never completes")
+#   zwift reset-resolution  let Zwift choose its own resolution again (undoes the installer's screen resolution)
+#   zwift set-resolution [WxH]   render at WxH, or at the screen's native resolution without WxH
 set -u
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 DATA="$(dirname "$SELF")"
@@ -79,8 +81,18 @@ case "${1:-}" in
          print } END { print n+0 > "/dev/stderr" }' "$B" > "$R.tmp" 2>"$R.count" && mv "$R.tmp" "$R"
     echo "Removed $(cat "$R.count") cached Bluetooth entries (backup: $B). Pair your devices again in Zwift."
     rm -f "$R.count"; exit 0 ;;
+  reset-resolution|set-resolution)
+    if pgrep -f 'ZwiftApp\.exe' >/dev/null; then echo "Quit Zwift first (it rewrites prefs.xml when it closes)." >&2; exit 1; fi
+    # shellcheck source=/dev/null
+    . "$DATA/zwift-resolution.sh"
+    if [ "$1" = reset-resolution ]; then zl_clear_resolution; exit 0; fi
+    r="${2:-$(zl_native_res)}"
+    zl_valid_res "$r" || { echo "zwift: give the resolution as WxH, e.g. zwift set-resolution 2560x1440" >&2; exit 1; }
+    rm -f "$DATA/resolution.applied"; zl_set_conf_resolution "$r"; zl_apply_resolution
+    [ -n "$(zl_prefs_files)" ] || echo "Zwift will start at $r once it has created its settings file (after its first start)."
+    exit 0 ;;
   login|logout|status) exec python3 "$DATA/zwift-auth.py" "$1" ;;
-  -h|--help) sed -n '2,12p' "$SELF"; exit 0 ;;
+  -h|--help) sed -n '2,14p' "$SELF"; exit 0 ;;
 esac
 
 # Native start (default): sign in with zwift-auth.py and start ZwiftApp.exe directly, the way
@@ -95,6 +107,8 @@ esac
 case "$DISPLAY_ARG" in ""|x11|wayland) ;; *) echo "zwift: --display takes x11 or wayland" >&2; exit 1 ;; esac
 # shellcheck source=/dev/null
 . "$DATA/zwift-display.sh"
+# shellcheck source=/dev/null
+[ -f "$DATA/zwift-resolution.sh" ] && . "$DATA/zwift-resolution.sh"
 
 if pgrep -f 'ZwiftApp\.exe' >/dev/null; then echo "Zwift is already running."; exit 0; fi
 if [ "$NATIVE" = 1 ] && [ -f "$ZDIR/ZwiftApp.exe" ] && [ -f "$DATA/LinuxZwiftLauncher.exe" ]; then :
@@ -123,6 +137,9 @@ Gtk.init(); g = Gdk.Display.get_default().get_monitors().get_item(0).get_geometr
     pref_set_default "$PREFS" WINHEIGHT $(( h * 3 / 4 / 2 * 2 ))
   fi
 done
+
+# The resolution chosen at install (RESOLUTION in zwift.conf): Zwift's GPU detection often caps it at 1080p.
+type zl_apply_resolution >/dev/null 2>&1 && zl_apply_resolution
 
 ble_release   # in case a previous session crashed or was killed
 ble_preflight
@@ -164,6 +181,8 @@ wait "$UMU_PID" 2>/dev/null
 # Zwift writes Log.txt under AppData\Local (current builds) or Documents (older ones); check the newest.
 [ "$NATIVE" = 1 ] && zl_check_display "$(ls -t "$PFX"/drive_c/users/*/AppData/Local/Zwift/Logs/Log.txt \
   "$PFX"/drive_c/users/*/Documents/Zwift/Logs/Log.txt 2>/dev/null | head -1)"
+# First start: prefs.xml didn't exist yet, so apply the resolution now for the next start.
+type zl_apply_resolution >/dev/null 2>&1 && zl_apply_resolution
 ble_release
 echo "Zwift closed."
 exit 0
