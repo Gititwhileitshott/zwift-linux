@@ -105,6 +105,16 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
   window exactly screen-sized, so the frame's edges sat off screen and it couldn't be resized (one
   run logged `GLFW ERROR 65540` and a 0x0 window). zwift-linux now writes 75% of the desktop on first
   start; confirmed on the Renoir PC (window 1728x972, resizable).
+- **Resolution capped at 1080p:** Zwift chooses a graphics profile from the GPU it detects, and only
+  the top profile offers resolutions above 1080p. Under Wine the AMD Renoir iGPU got the medium
+  profile, so the 4K screen could only be used at 1080p. GNOME's fractional scaling also makes
+  XWayland report a smaller desktop than the screen's real size. zwift-linux now reads the
+  largest screen's native mode from `/sys/class/drm` and writes it to `USER_RESOLUTION_PREF` in
+  `prefs.xml`, which Zwift honours on any profile; confirmed on the Renoir PC on 2 Nov 2026
+  ("Changed resolution to 2560 x 1440" on the medium profile).
+- **Zwift-side suggestion:** let users pick resolutions up to the screen's native size on every
+  graphics profile, or treat an unrecognised GPU by its reported capabilities rather than falling
+  back to a low profile.
 - **Zwift-side suggestion:** when no saved window size exists, start windowed mode smaller than the
   screen instead of exactly screen-sized.
 - **Known limitation:** with Wine's Wayland driver, the game drops to about 1 FPS while another
@@ -178,7 +188,8 @@ Collected from the suggestions above, smallest change first:
 5. Stop retrying the video encoder after repeated failures (finding 3).
 6. Open windowed mode smaller than the screen when there's no saved size (finding 3).
 7. Reconnect a dropped BLE sensor when it advertises again (finding 4).
-8. **(pending)** anything further from the launcher 1.2.0 shim work (finding 1).
+8. Offer resolutions up to the screen's native size on every graphics profile (finding 3).
+9. **(pending)** anything further from the launcher 1.2.0 shim work (finding 1).
 
 ## How to reproduce
 
