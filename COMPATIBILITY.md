@@ -64,8 +64,13 @@ Ubuntu machine yet.
 - **Ride-highlight recording** can't save clips (Proton's FFmpeg has no MP4 muxer), and Zwift
   retries the encoder several times a second. `zwift` turns it off in `prefs.xml` unless
   `ZWIFT_VIDEO_CAPTURE=1` is set.
-- **Hardware video decode** (D3D11) isn't available, so Zwift decodes video in software. On any
-  recent CPU this has no visible effect.
+- **Video routes need hardware H.264 decode.** Zwift's video routes decode H.264 through Media
+  Foundation on a D3D11 device, which DXVK provides. This works on AMD Renoir with RADV and on an
+  NVIDIA RTX 5080 Laptop GPU with driver 615.78 (both on GE-Proton 11-8, 8 Nov 2026): the log shows
+  `[MOCHI] VideoDecoderContext: hardware decode supported` and `HW video decode enabled (D3D11)`.
+  No software decode fallback has been found, so if the log says `no adapter supports hardware
+  H.264 decode`, the video route is expected to stay black. Check with
+  `grep -E 'VideoDecoderContext|HW video' ~/Games/zwift/drive_c/users/steamuser/AppData/Local/Zwift/Logs/Log.txt`.
 - winewayland logs harmless notes about missing optional protocols (text input, clipboard
   control, HDR image descriptions).
 
