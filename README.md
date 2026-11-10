@@ -4,6 +4,9 @@ Run the official **Zwift for Windows** app on Linux, with your **Bluetooth and A
 
 > Unofficial community project. Not made, supported or endorsed by Zwift, Inc. You need your own Zwift account. Zwift itself is downloaded from Zwift's own servers and is not modified.
 
+> [!TIP]
+> **November 2026: heart-rate monitors fixed.** A Bluetooth heart-rate sensor (tested with a Garmin fenix 7) could show as connected in Zwift but never send a pulse, showing "no signal". Wine's request to switch on heart-rate notifications sometimes failed, and Zwift doesn't ask again. `zwift` now keeps that subscription open, and Wine's Bluetooth driver retries the request. On the test PC heart rate then held through a 68-minute ride, and Zwift reconnected on its own after short drops. Re-run `./install.sh` to get the fix. `zwift` now also remembers the window's size and position.
+
 > [!NOTE]
 > **October 2026: works again, without Zwift's Windows launcher.** Zwift's launcher 1.2.0 (built October 15, 2026) closes about 3 seconds after it opens under Wine/Proton, because its login screen uses a WebView2 control that needs Windows graphics APIs Wine doesn't have. zwift-linux 1.1.0 no longer needs the launcher: `zwift` signs you in on Zwift's own sign-in page and starts the game directly, and the installer downloads the game straight from Zwift's servers. Verified on an NVIDIA RTX 4090 (GNOME, Wayland) with a ride in Watopia at a steady 58 FPS. The display settings are chosen per desktop session and GPU; see [COMPATIBILITY.md](COMPATIBILITY.md) for what has and hasn't been tested. A fresh install on a PC with an AMD Renoir integrated GPU (GNOME, XWayland) also worked, with a 41-minute ride at a steady 30 FPS (its display's refresh rate) on Bluetooth heart rate. See [Signing in without the launcher](#signing-in-without-the-launcher).
 
@@ -14,7 +17,7 @@ Zwift has no Linux version. The Windows version can run through **Wine** (the Wi
 - **GE-Proton 11-8**, a community build of Proton that added Bluetooth LE support for Zwift, runs the game.
 - **umu-launcher** starts Proton outside of Steam, the same way Steam would.
 - A small **ANT+ bridge** (`ant-libusb/`, included with source) lets Zwift's ANT+ code reach USB ANT+ sticks through Linux.
-- A **`zwift` command** starts the game and quietly fixes the most common Linux Bluetooth glitch (scanning that silently fails after a crash), plus helper commands to check and repair your setup.
+- A **`zwift` command** starts the game and quietly fixes the most common Linux Bluetooth glitches (scanning that silently fails after a crash, and heart-rate sensors that connect but send nothing), remembers the window's size and position, and adds helper commands to check and repair your setup.
 
 The result: the unmodified Windows app runs with Bluetooth and ANT+ working directly.
 
@@ -113,7 +116,7 @@ Verified on CachyOS (kernel 7.2.9, AMD Radeon 890M), Zwift 1.123.0, 13 Oct 2026:
 | Connection | Result |
 | --- | --- |
 | Bluetooth LE smart trainer (Wahoo KICKR BIKE, FTMS) | Power, cadence and controllable trainer; full rides with grade changes, all commands acknowledged |
-| Bluetooth LE heart rate (Garmin fenix 7) | Paired and streaming |
+| Bluetooth LE heart rate (Garmin fenix 7) | Paired and streaming; 68-minute ride with heart rate throughout, reconnects by itself after short drops (10 Nov 2026) |
 | ANT+ USB stick (Dynastream ANTUSB-m) | Zwift lists ANT+ FE-C and power devices with live power; full rides on ANT+ |
 | Frame rate | 55-93 FPS |
 
@@ -129,6 +132,8 @@ The full desktop × GPU × distro matrix, with tested and untested setups kept a
 - **Installer hangs at step 5/7 (Wine prefix), right after "prefix ready":** fixed on 2 Nov 2026 ([issue #2](https://github.com/Gititwhileitshott/zwift-linux/issues/2)). `kscreen-doctor` installed outside a KDE Plasma session waits forever for the KScreen service. The installer now only asks it in a Plasma session, and gives up after 5 s. If you still see a hang, update with `git pull` and re-run `./install.sh`, or pass `--dpi 144` (or your scale × 96) to skip detection.
 - **Zwift window frozen, black, or "not responding":** try the other display driver: `zwift --display x11` or `zwift --display wayland`. `zwift doctor` shows which one is in use and why.
 - **Zwift window can't be resized or its edges are off screen:** `zwift` sets the windowed size to 75% of your desktop on first start (`WINWIDTH`/`WINHEIGHT` in Zwift's prefs.xml). If you changed it by hand, delete those two lines and start again.
+- **Window size and position:** `zwift` remembers them for you (Zwift itself doesn't). Size and place the window once and later starts restore it, about 8 seconds after the window opens. With Wine's X11 driver (XWayland or an X11 desktop) both are kept, in `~/.local/share/zwift-linux/window-geometry` (delete it to forget them). If that spot is no longer on any screen, for example after unplugging a monitor or changing scaling, only the size is restored, shrunk to fit if needed. With `--display wayland` only the size is kept, because Wayland doesn't let other programs move windows, so your desktop chooses where the window opens.
+- **Heart-rate sensor shows connected but "no signal":** Zwift's log (`Log.txt`) shows `[BLEWinLib] Set notify failed`. Re-run `./install.sh` so `zwift` keeps the heart-rate subscription open (`tools/ble-hr-hold.py`, log in `~/.local/share/zwift-linux/ble-hr-hold.log`) and Wine's Bluetooth driver retries the request ([wine-patches/](wine-patches/README.md)). For Garmin watches, start **Broadcast Heart Rate** on the watch before pairing. The watch only sends heart rate over Bluetooth while that's on. To see what Linux's Bluetooth service saw during a ride, run `python3 tools/ble-watch.py AA:BB:CC:DD:EE:FF` before starting Zwift.
 - **Bluetooth devices don't show up:** check `zwift doctor`. The adapter must be powered on (`bluetoothctl power on`) and the trainer must not be connected to another app or phone. Pairing can take 15-30 s under Wine.
 - **No Bluetooth devices at all on the pairing screen:** Linux's Bluetooth service refuses to scan (`org.bluez.Error.InProgress`), typically after a session that stopped mid-connection. Zwift doesn't retry, so nothing appears. `zwift` now test-scans before each start and power-cycles the adapter if it's stuck; by hand: `bluetoothctl power off; bluetoothctl power on`. `zwift doctor` checks this too.
 - **A Bluetooth sensor drops mid-ride:** USB power saving on the Bluetooth adapter can drop links. The installer adds a udev rule that turns it off; `zwift doctor` shows whether it's on. If a sensor still drops, Zwift may not reconnect it on its own (a known open issue); use ANT+ for that sensor as a fallback.
@@ -143,6 +148,7 @@ The full desktop × GPU × distro matrix, with tested and untested setups kept a
 | --- | --- | --- |
 | WinRT `Windows.Devices.Bluetooth` / `Windows.Devices.Radios` (in `BleWin10Lib.dll`) | Not implemented in stock Wine | GE-Proton 11-8 BLE support (Evan Thomas, David Szendrei), `PROTON_ENABLE_WINEBTH=1` |
 | Dynastream `ANT_DLL.dll` → `libusb0.dll` + `libusb0.sys` kernel driver | Wine can't load Windows kernel drivers, so no stick is found | `ant-libusb/`: a Wine builtin `libusb0.dll` that forwards the libusb-win32 API to Linux usbfs through a Wine unix library |
+| GATT notifications for heart rate (`GattCharacteristic` CCCD write) | Wine asks BlueZ once (`StartNotify`); the request can fail (ATT error 0x0e) and Zwift doesn't repeat it, so the sensor shows connected with no signal | `tools/ble-hr-hold.py` keeps a BlueZ subscription for connected heart-rate sensors, and `wine-patches/` retries `StartNotify` inside Wine's Bluetooth driver |
 | .NET 4.8 + WebView2 launcher | wine-mono makes the launcher exit (code 200); launcher 1.2.0 also needs WinRT composition types Wine lacks | Not needed: `zwift-auth.py` + `LinuxZwiftLauncher.exe` do the launcher's sign-in and game start (below). GE-Proton's `umu-zwift` fix still installs .NET 4.8 and WebView2 for `zwift --launcher` |
 
 ### Signing in without the launcher

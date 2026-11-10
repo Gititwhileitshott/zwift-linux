@@ -1,5 +1,32 @@
 # Changelog
 
+## 10 November 2026
+
+- **Bluetooth heart-rate sensors that connect but show "no signal" are fixed.** With a Garmin
+  fenix 7, Zwift logged `[BLEWinLib] Set notify failed` and never received a pulse. Wine's
+  request to BlueZ to switch on heart-rate notifications (`StartNotify`) failed with
+  `ATT error: 0x0e` around connection setup, and Zwift doesn't repeat it. On the same
+  connection the watch sent heart rate normally (120 readings a minute) as soon as the request
+  was made again, so the sensor, BlueZ and the kernel were fine.
+  - `zwift` now starts `tools/ble-hr-hold.py`, which holds its own heart-rate subscription for
+    any connected heart-rate sensor while Zwift runs (`ble-hr-hold.log` in the data folder).
+  - `wine-patches/` adds a retry for `StartNotify` to Wine's Bluetooth driver (up to 6 tries,
+    400 ms apart). `install.sh` installs the prebuilt `winebth.so` only over the unmodified
+    GE-Proton 11-8 file and keeps that as `winebth.so.orig`.
+  - Tested on the "workout" PC: a 68-minute ride with heart rate throughout, and Zwift
+    reconnected the fenix by itself after three short early drops. The retry didn't run in that
+    session, because the first request succeeded.
+  - `tools/ble-watch.py` logs what BlueZ sees for one sensor during a ride (connects, BlueZ's
+    disconnect reason, notification gaps), without root.
+- **Zwift's window keeps its size and position.** Zwift saves neither. `tools/zwift-window.py`
+  runs alongside the game and, with Wine's X11 driver, restores the last size and position. If
+  that spot is no longer on any monitor, it restores only the size, shrunk to fit if needed. With
+  every driver, including Wayland, the last size Zwift logged is written to `prefs.xml` after the
+  game closes, so the next start opens at that size.
+- **`zwift doctor` no longer reports a working ANT+ stick as failed.** umu/Proton doesn't pass a
+  Windows program's console output back, so the live stick test always looked empty. The test now
+  writes its output to a file.
+
 ## 2 November 2026
 
 - **Repository hardening.** Added `SECURITY.md` (report problems privately through GitHub),

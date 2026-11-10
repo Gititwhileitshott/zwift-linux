@@ -54,7 +54,7 @@ Ubuntu machine yet.
 
 ## Known limitations
 
-- **Bluetooth reconnect** after a lost link didn't happen once on workout (fenix 7 kept advertising, Zwift scanned for 19 min). Wine does report the device's advertisements again (checked with BlueZ), so the cause is further along (connect/GATT path) and still open. With USB autosuspend off the link hasn't dropped since; ANT+ HR is the fallback.
+- **Bluetooth reconnect** after a lost link works since 10 Nov 2026 (fenix 7: three drops early in a ride, each reconnected by Zwift within a minute). If a heart-rate sensor reconnects but shows no signal, see the "no signal" entry in the README's Troubleshooting.
 
 - **Wine Wayland driver: a hidden window drops to about 1 FPS.** When another window fully covers
   Zwift, GNOME stops sending frame callbacks and the game slows to about 1 FPS. It returns to full

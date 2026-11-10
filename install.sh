@@ -214,6 +214,22 @@ if [ "$DO_ANT" = 1 ]; then
 else
   ok "skipped (--no-ant)"
 fi
+# Wine's Bluetooth driver with a retry for heart-rate notifications (see wine-patches/README.md).
+WINEBTH_ORIG_SHA=54e85a75a9ed092a548a97204dc2f0a99bb5c7a48ce5a3f9b503887b84c4a3f2
+WINEBTH="$GE/files/lib/wine/x86_64-unix/winebth.so"
+if [ "$DO_BLE" = 1 ] && [ -f "$HERE/wine-patches/winebth.so" ] && [ -f "$WINEBTH" ]; then
+  (cd "$HERE/wine-patches" && sha256sum -c --quiet SHA256SUMS) || die "wine-patches/winebth.so doesn't match wine-patches/SHA256SUMS"
+  have="$(sha256sum "$WINEBTH" | cut -d' ' -f1)"
+  if [ "$have" = "$WINEBTH_ORIG_SHA" ]; then
+    cp -f "$WINEBTH" "$WINEBTH.orig"
+    install -m 755 "$HERE/wine-patches/winebth.so" "$WINEBTH"
+    ok "Bluetooth driver with heart-rate notify retry installed (original kept as winebth.so.orig)"
+  elif cmp -s "$WINEBTH" "$HERE/wine-patches/winebth.so"; then
+    ok "Bluetooth driver with heart-rate notify retry already installed"
+  else
+    warn "$WINEBTH is not the GE-Proton 11-8 build; leaving it unpatched"
+  fi
+fi
 
 # ---------------------------------------------------------------------------------------------
 step "4/7 System setup (USB permission for ANT+ sticks, Bluetooth service)"
@@ -392,6 +408,8 @@ install -m 644 "$HERE/share/zwift-display.sh" "$DATA/zwift-display.sh"
 install -m 644 "$HERE/share/zwift-resolution.sh" "$DATA/zwift-resolution.sh"
 install -m 755 "$HERE/share/zwift-fetch-game.py" "$DATA/zwift-fetch-game.py"
 install -m 755 "$HERE/share/zwift-auth.py" "$DATA/zwift-auth.py"
+install -m 755 "$HERE/tools/ble-hr-hold.py" "$DATA/ble-hr-hold.py"
+install -m 755 "$HERE/tools/zwift-window.py" "$DATA/zwift-window.py"
 # The game starter: prebuilt by default, or built here from its source with --build-starter.
 if [ "$BUILD_STARTER" = 1 ]; then
   if ! command -v x86_64-w64-mingw32-gcc >/dev/null; then
