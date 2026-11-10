@@ -1,0 +1,134 @@
+--- a/dlls/winebth.sys/dbus.c	2026-11-10 08:44:33.230723135 -0800
++++ b/dlls/winebth.sys/dbus.c	2026-11-10 08:43:18.089469943 -0800
+@@ -33,6 +33,7 @@
+ #include <errno.h>
+ #include <string.h>
+ #include <inttypes.h>
++#include <unistd.h>
+ 
+ #ifdef SONAME_LIBDBUS_1
+ #include <dbus/dbus.h>
+@@ -1476,6 +1477,111 @@
+     return bluez_gatt_send_async( connection, watcher_ctx, request, irp );
+ }
+ 
++/* A CCCD write can fail transiently right after a connection is set up (ATT error 0x0e from some
++ * Garmin watches), and applications such as Zwift do not repeat the request, so retry it here. */
++#define BLUEZ_START_NOTIFY_RETRIES 6
++#define BLUEZ_START_NOTIFY_RETRY_DELAY_US 400000
++
++struct bluez_start_notify_data
++{
++    IRP *irp;
++    struct bluez_watcher_ctx *watcher_ctx;
++    void *connection;
++    char *path;
++    int retries;
++};
++
++static void bluez_start_notify_data_free( void *param )
++{
++    struct bluez_start_notify_data *data = param;
++    free( data->path );
++    free( data );
++}
++
++static NTSTATUS bluez_gatt_start_notify_send( void *connection, void *watcher_ctx, const char *path, IRP *irp,
++                                              int retries );
++
++static void bluez_gatt_start_notify_callback( DBusPendingCall *pending, void *param )
++{
++    struct winebluetooth_watcher_event_gatt_operation_finished finished = {0};
++    union winebluetooth_watcher_event_data event;
++    struct bluez_start_notify_data *data = param;
++    DBusMessage *reply;
++    DBusError error;
++
++    finished.irp = data->irp;
++    reply = p_dbus_pending_call_steal_reply( pending );
++    p_dbus_error_init( &error );
++    if (p_dbus_set_error_from_message( &error, reply ))
++    {
++        WARN( "StartNotify failed for %s, %d retries left: %s\n", debugstr_a( data->path ), data->retries,
++              dbgstr_dbus_error( &error ) );
++        if (data->retries > 0 && (!strcmp( error.name, "org.bluez.Error.Failed" ) ||
++                                  !strcmp( error.name, "org.bluez.Error.InProgress" )))
++        {
++            NTSTATUS status;
++
++            p_dbus_error_free( &error );
++            p_dbus_message_unref( reply );
++            usleep( BLUEZ_START_NOTIFY_RETRY_DELAY_US );
++            status = bluez_gatt_start_notify_send( data->connection, data->watcher_ctx, data->path, data->irp,
++                                                   data->retries - 1 );
++            if (status == STATUS_PENDING)
++                return;
++            finished.result = status;
++            event.gatt_operation_finished = finished;
++            bluez_event_list_queue_new_event( &data->watcher_ctx->event_list,
++                                              BLUETOOTH_WATCHER_EVENT_TYPE_GATT_OPERATION_FINISHED, event );
++            return;
++        }
++        finished.result = bluez_gatt_error_to_status( &error );
++    }
++    event.gatt_operation_finished = finished;
++    bluez_event_list_queue_new_event( &data->watcher_ctx->event_list,
++                                      BLUETOOTH_WATCHER_EVENT_TYPE_GATT_OPERATION_FINISHED, event );
++    p_dbus_error_free( &error );
++    p_dbus_message_unref( reply );
++}
++
++static NTSTATUS bluez_gatt_start_notify_send( void *connection, void *watcher_ctx, const char *path, IRP *irp,
++                                              int retries )
++{
++    struct bluez_start_notify_data *data;
++    DBusPendingCall *pending_call = NULL;
++    DBusMessage *request;
++
++    request = p_dbus_message_new_method_call( BLUEZ_DEST, path, BLUEZ_INTERFACE_GATT_CHARACTERISTICS, "StartNotify" );
++    if (!request)
++        return STATUS_NO_MEMORY;
++    if (!(data = calloc( 1, sizeof( *data ) )) || !(data->path = strdup( path )))
++    {
++        free( data );
++        p_dbus_message_unref( request );
++        return STATUS_NO_MEMORY;
++    }
++    data->irp = irp;
++    data->watcher_ctx = watcher_ctx;
++    data->connection = connection;
++    data->retries = retries;
++    if (!p_dbus_connection_send_with_reply( connection, request, &pending_call, bluez_timeout ) || !pending_call)
++    {
++        p_dbus_message_unref( request );
++        bluez_start_notify_data_free( data );
++        return STATUS_INTERNAL_ERROR;
++    }
++    p_dbus_message_unref( request );
++    if (!p_dbus_pending_call_set_notify( pending_call, bluez_gatt_start_notify_callback, data,
++                                         bluez_start_notify_data_free ))
++    {
++        bluez_start_notify_data_free( data );
++        p_dbus_pending_call_cancel( pending_call );
++        p_dbus_pending_call_unref( pending_call );
++        return STATUS_NO_MEMORY;
++    }
++    p_dbus_pending_call_unref( pending_call );
++    return STATUS_PENDING;
++}
++
+ NTSTATUS bluez_gatt_characteristic_set_notify( void *connection, void *watcher_ctx, struct unix_name *chrc, IRP *irp,
+                                                BOOL enable )
+ {
+@@ -1483,8 +1589,10 @@
+ 
+     TRACE( "(%s, %p, %d)\n", debugstr_a( chrc->str ), irp, enable );
+ 
++    if (enable)
++        return bluez_gatt_start_notify_send( connection, watcher_ctx, chrc->str, irp, BLUEZ_START_NOTIFY_RETRIES );
+     request = p_dbus_message_new_method_call( BLUEZ_DEST, chrc->str, BLUEZ_INTERFACE_GATT_CHARACTERISTICS,
+-                                              enable ? "StartNotify" : "StopNotify" );
++                                              "StopNotify" );
+     if (!request)
+         return STATUS_NO_MEMORY;
+     return bluez_gatt_send_async( connection, watcher_ctx, request, irp );

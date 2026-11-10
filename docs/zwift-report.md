@@ -123,10 +123,13 @@ could change on its side to make Linux (and Wine-based setups like Steam Deck) m
   has no MP4 muxer, and Zwift retries the encoder several times a second on both display drivers.
   zwift-linux turns it off (`VIDEO_CAPTURE_ENABLED=0` in `prefs.xml`).
 - **Rendering notes:** ZwiftApp draws with OpenGL (GL 4.6 compatibility profile); D3D11 is only used
-  for Media Foundation video decode, whose hardware probe fails under Wine, so video is decoded
-  in software.
-- **Zwift-side suggestions:** stop retrying the video encoder after it fails a few times, and fall
-  back to software decode without repeated probing.
+  for Media Foundation H.264 decode of video routes. Through DXVK this hardware decode works on
+  AMD Renoir (RADV) and on an NVIDIA RTX 5080 Laptop GPU (driver 615.78), confirmed on
+  8 Nov 2026 by `[MOCHI] HW video decode enabled (D3D11)` and a video route that played. When no
+  adapter reports H.264 decode support, no software decode path was found in ZwiftApp, so the route
+  is expected to stay black.
+- **Zwift-side suggestions:** stop retrying the video encoder after it fails a few times, and add a
+  software H.264 decode fallback for video routes when no adapter supports hardware decode.
 
 ### 4. Bluetooth LE trainers and sensors
 

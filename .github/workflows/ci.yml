@@ -40,6 +40,7 @@ jobs:
         run: |
           (cd zwift-start && sha256sum -c SHA256SUMS)
           (cd ant-libusb && sha256sum -c SHA256SUMS)
+          (cd wine-patches && sha256sum -c SHA256SUMS)
 
       - name: Every committed binary is listed in a SHA256SUMS file
         run: |

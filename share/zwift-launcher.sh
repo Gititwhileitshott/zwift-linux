@@ -128,7 +128,8 @@ for PREFS in "$PFX"/drive_c/users/*/AppData/Local/Zwift/prefs.xml "$PFX"/drive_c
   [ -f "$PREFS" ] || continue
   [ "${ZWIFT_VIDEO_CAPTURE:-0}" = 1 ] || pref_set_default "$PREFS" VIDEO_CAPTURE_ENABLED 0
   # Without WINWIDTH/WINHEIGHT Zwift opens its window exactly screen-sized, so the frame's edges sit off
-  # screen and it can't be resized. Start windowed mode at 75% of the desktop; Zwift keeps resized sizes.
+  # screen and it can't be resized. Start windowed mode at 75% of the desktop; zwift-window.py then keeps
+  # the size you last used (Zwift itself doesn't save a dragged size).
   if ! grep -q '<WINWIDTH>' "$PREFS"; then
     wh="$(python3 -c 'import gi; gi.require_version("Gtk", "4.0"); from gi.repository import Gtk, Gdk
 Gtk.init(); g = Gdk.Display.get_default().get_monitors().get_item(0).get_geometry(); print(g.width, g.height)' 2>/dev/null)"
@@ -165,6 +166,20 @@ else
   UMU_PID=$!
 fi
 
+# Wine's request to enable heart-rate notifications can fail and Zwift does not retry, leaving
+# the sensor "connected" with no signal. This helper holds the subscription for the session.
+if [ "$DO_BLE" = 1 ] && [ -f "$DATA/ble-hr-hold.py" ]; then
+  python3 -u "$DATA/ble-hr-hold.py" >"$DATA/ble-hr-hold.log" 2>&1 &
+  HOLD_PID=$!
+fi
+# Zwift keeps neither its window position nor a dragged size; restore and track both here. Only X11 and
+# XWayland let another program move a window; under Wayland only the size is kept (after Zwift closes).
+if [ "${ZL_DISPLAY:-x11}" = x11 ] && [ -f "$DATA/zwift-window.py" ]; then
+  python3 -u "$DATA/zwift-window.py" "$DATA/window-geometry" >"$DATA/zwift-window.log" 2>&1 &
+  WINDOW_PID=$!
+fi
+trap 'kill ${HOLD_PID:-} ${WINDOW_PID:-} 2>/dev/null' EXIT
+
 # The launcher stays in the tray after the game quits and keeps the prefix alive.
 # Once ZwiftApp.exe has run and exited, shut the prefix down so the session ends.
 seen=0
@@ -178,6 +193,12 @@ while kill -0 "$UMU_PID" 2>/dev/null; do
   sleep 2
 done
 wait "$UMU_PID" 2>/dev/null
+# Keep the window size for the next start with any display driver (Wayland can't be moved from outside).
+if [ -f "$DATA/zwift-window.py" ]; then
+  for zlog in "$PFX"/drive_c/users/*/AppData/Local/Zwift/Logs/Log.txt; do
+    [ -f "$zlog" ] && python3 "$DATA/zwift-window.py" --prefs-size "${zlog%/Logs/Log.txt}/prefs.xml" "$zlog"
+  done
+fi
 # Zwift writes Log.txt under AppData\Local (current builds) or Documents (older ones); check the newest.
 [ "$NATIVE" = 1 ] && zl_check_display "$(ls -t "$PFX"/drive_c/users/*/AppData/Local/Zwift/Logs/Log.txt \
   "$PFX"/drive_c/users/*/Documents/Zwift/Logs/Log.txt 2>/dev/null | head -1)"

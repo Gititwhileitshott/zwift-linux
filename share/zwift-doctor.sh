@@ -119,9 +119,13 @@ else
       echo "  running a live test through Wine (reset, capabilities, assign channel)..."
       export WINEPREFIX="$PFX" PROTONPATH="$GE" GAMEID="umu-zwift" PROTON_USE_XALIA=0 WINEDLLOVERRIDES="libusb0=b"
       cp -f "$DATA/libusb0-placeholder.dll" "$PFX/drive_c/windows/system32/libusb0.dll" 2>/dev/null
-      out="$("$UMU" "$DATA/antprobe.exe" 2>/dev/null | tr -d '\r')"
-      echo "$out" | grep -qE "^OK: async receive" && pass "ANT+ stick works through Wine (Zwift's access pattern)" \
-        || { fail "live ANT+ test failed:"; echo "$out" | grep -E "^(OK|FAIL|WARN|INFO)" | sed 's/^/          /'; }
+      # umu/Proton does not pass a Windows program's stdout back, so have cmd write it to a file.
+      probe_out="$DATA/antprobe-output.txt"; rm -f "$probe_out"
+      "$UMU" 'C:\windows\system32\cmd.exe' /c "Z:${DATA//\//\\}\\antprobe.exe > Z:${probe_out//\//\\} 2>&1" >/dev/null 2>&1
+      out="$(tr -d '\r' < "$probe_out" 2>/dev/null)"; rm -f "$probe_out"
+      if [ -z "$out" ]; then note "live ANT+ test produced no output, so the stick could not be checked"
+      elif echo "$out" | grep -qE "^OK: async receive"; then pass "ANT+ stick works through Wine (Zwift's access pattern)"
+      else fail "live ANT+ test failed:"; echo "$out" | grep -E "^(OK|FAIL|WARN|INFO)" | sed 's/^/          /'; fi
     fi
   fi
 fi
